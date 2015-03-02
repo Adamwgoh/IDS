@@ -1,0 +1,66 @@
+
+
+//YUY2 uses 4:2:2 sampling standard, that is : Y takes 4bits, U and V takes 2 bits, total 16bytes
+//2pixels represented in 1 micropixels
+//sequence is Y0U0Y1V0 Y2U1Y3V1
+/**
+ * Extract YUV components
+   Y0 U0 Y1 V0		Y2 U2 Y3 V2
+**/
+	
+/**
+ * 
+	Mat* d_yuy2frame = new Mat(Size(frame_width, frame_height), CV_8UC3, 
+	int y0,y1,u,v;
+	int uvR,uvB,uvG;
+	int r1,g1,b1;
+	int r2,g2,b2;
+
+	int step = 0;
+	unsigned char *colorframe = (unsigned char*) malloc(datasize);
+	for(int i=0; i<640*480*3*sizeof(char); i++) colorframe[i] = 0;//Fill empty Mat with 0s. Similar to Zeros();
+		//uint8_t pixelsColorRaw[colorsize];
+
+		for(int i = 0; i < (colorframe_height/2); i++){
+			for(int j = 0; j < colorframe_width; j++){
+
+				int steps = ((i*colorframe_width) + j) * 4;	
+			
+				y0 = d_yuy2frame.data[steps] & 0xff;	// 0xff is a bitmask to limit the value from 0 - 255
+				v  = d_yuy2frame.data[steps+1] & 0xff;
+				y1 = d_yuy2frame.data[steps+2] & 0xff;
+				u  = d_yuy2frame.data[steps+3] & 0xff;
+			
+				//printf("y0 : %d, y1 : %d, u : %d, v : %d\n", y0,y1,u,v);
+				//printf("one elemSize : %d\n", d_yuy2frame.elemSize());
+
+			
+				int r1 = rgbClamp((int) (1.164*(y0-16) + 1.567*(v-128)));
+				int g1 = rgbClamp((int) (1.164*(y0-16) - 0.798 * (v-128) - 0.384*(u-128)));
+				int b1 = rgbClamp((int) (1.164*(y0-16) + 1.980 * (u-128)));
+				int r2 = rgbClamp((int) (1.164*(y1-16) + 1.567*(v-128)));
+				int g2 = rgbClamp((int) (1.164*(y1-16) - 0.798 * (v-128) - 0.384*(u-128)));
+				int b2 = rgbClamp((int) (1.164*(y1-16) + 1.980 * (u-128)));
+				//printf("r : %d, g : %d, b : %d\n", r1,g1,b1);
+				int j3 = (j+1)*3;
+				//printf("d_colorframe step : %s\n", d_colorframe->step);
+			
+				colorframe[step++] = r1;
+				colorframe[step++] = g1;
+				colorframe[step++] = b1;
+				colorframe[step++] = r1;
+				colorframe[step++] = g1;
+				colorframe[step++] = b1;
+		}
+		
+	}
+	printf("color frame no : %d\n", ccount);
+	IplImage* cframe = cvCreateImage(Size(640,480), IPL_DEPTH_8U, 3);
+	memcpy(cframe->imageData, colorframe, 640*480*3*sizeof(char));
+	cvShowImage("colorframe", cframe);
+	cvReleaseImage(&cframe);
+	free(colorframe);
+	cv::waitKey(10);
+
+*
+**/
