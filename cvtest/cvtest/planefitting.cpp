@@ -28,28 +28,22 @@ void RANSAC(pcl::PointCloud<pcl::PointXYZ>::Ptr inputcloud){
 	//get model coefficients
 	Eigen::VectorXf coeff;
 	sac.getModelCoefficients (coeff);
-
-
-
-
-	//	/**
-	//   * RANSAC
-	//   **/
-	//std::vector<int> inliers;
-	////plane model sample consensus
-	//pcl::SampleConsensusModelSphere<pcl::PointXYZ>::Ptr
-	//	pmodel (new pcl::SampleConsensusModelSphere<pcl::PointXYZ> (cloudptr));
-
-	////RANSAC with the created plane model sample consensus
-	//pcl::RandomSampleConsensus<pcl::PointXYZ> ransac (pmodel);
-	//ransac.setDistanceThreshold(0.1);
-	//if(ransac.computeModel())	printf("model found\n");
-	//ransac.getInliers(inliers);
-
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr pfinal (new pcl::PointCloud<pcl::PointXYZ>);
-	////for(int i = 0; i < inliers.size(); i++){
-	////	printf("inlier no %d : %d\n", i, inliers.at(i));
-	////}
-	////copies all inliers of model computer to another pointcloud
-	//pcl::copyPointCloud<pcl::PointXYZ>(*cloudptr, inliers, *pfinal);
 }
+
+void getHistogram(cv::Mat data){
+	cv::Mat rawdata = data;
+	cv::Mat* graph = new cv::Mat();
+	float average_val = 0;
+	for (int col = 0; col < rawdata.cols; col++){
+		for(int row = 0; row < rawdata.rows; row++){
+			average_val += rawdata.data[row + col*rawdata.rows];
+		}
+
+		average_val /= rawdata.rows;
+		printf("average_val : %d\n", average_val);
+		graph->data[((int) average_val) * rawdata.rows + col] = 255;
+	}
+
+
+}
+

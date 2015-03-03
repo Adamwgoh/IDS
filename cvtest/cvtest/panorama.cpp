@@ -5,33 +5,64 @@
 #include <cv.h>
 #include <highgui.h>
 #include <stitching\stitcher.hpp>
+#include <sstream>
+
+cv::Mat getHistogram(cv::Mat data){
+	cv::Mat rawdata = data;
+	cv::Mat* graph = new cv::Mat(rawdata.rows, rawdata.cols, CV_8UC1);
+	float average_val = 0;
+	for (int row = 0; row < rawdata.rows; row++){
+		for(int col = 0; col < rawdata.cols; col++){
+			//printf("data val is %d\n", rawdata.data[row + (col)*(rawdata.rows)]);
+			average_val += rawdata.data[row + (col)*(rawdata.rows)];
+			//printf("curr row : %d, curr col : %d, current average val : %f\n", row, col, average_val);
+		}
+
+		average_val /= rawdata.rows;
+		printf("average_val : %f\n", average_val);
+		graph->data[row + ((int) average_val*rawdata.rows)] = 255;
+	}
+
+	return *graph;
+}
 
 int main(int argc, TCHAR* argv[])
 {
 	
-	std::ostringstream ss;
+
 	cv::Mat frame1, frame2;
 	std::vector<cv::Mat> frames;
 	std::vector<cv::Rect> rois;
-	cv::Mat pano;
-	//for(int i = 0; i < 25; i++){
-		int i = 1;
-		ss.clear();
-		ss << "..\\..\\clouds\\";
-		ss << i;
-		ss << "dframe.jpg";
-		cv::String url = ss.str();
-		printf("%s\n", url);
-		cv::waitKey(0);
-		cv::Mat frame = cv::imread(url);
-		
-		frames.push_back(frame);
+	std::ostringstream ss;
+	//cv::Mat pano = *new cv::Mat();
+	//for(int i = 1; i < 3; i++){
+	//	//int i = 1;
+	//	
+	//	ss << "rawdata\\";
+	//	ss << i;
+	//	ss << "dframe.jpg";
+	//	cv::String url = "";
+	//	url = ss.str();
+	//	printf("url : %s", url.c_str());
+	//	cv::waitKey(0);
+	//	cv::Mat frame = *new cv::Mat();
+	//	frame = cv::imread(url);
+	//	
+	//	printf("Frame width : %d, height : %d\n", frame.rows, frame.cols);
+	//	frames.push_back(frame);
+	//	url = "";
+	//	ss.clear();
+	//	ss.str("");
 	//}
 
-	cv::waitKey(30);
-	cv::Stitcher stitch = cv::Stitcher::createDefault(false);
-	stitch.stitch(frames, pano);
-	cv::imshow("panorama", pano);
+	//cv::waitKey(30);
+	//cv::Stitcher stitch = cv::Stitcher::createDefault(false);
+	//stitch.stitch(frames, pano);
+
+	//	cv::imshow("panorama", pano);
+	frame1 = cv::imread("rawdata\\15dframe.jpg");
+	frame2 = getHistogram(frame1);
+	cv::imshow("histogram", frame2);
 	cv::waitKey(0);
 
 	//frame1 = cv::imread("..\\panorama_image1.jpg");

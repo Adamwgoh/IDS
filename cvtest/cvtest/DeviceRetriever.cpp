@@ -106,22 +106,37 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 	
 	int32_t depthframe_width  = QQVGA_WIDTH;
 	int32_t depthframe_height = QQVGA_HEIGHT;
+	ofstream depthRawvals("depthRawvals.txt");
+	std::ostringstream ss;
 	printf("depth sample\n");
 	Mat depthframe = *new Mat(Size(depthframe_width, depthframe_height), CV_8UC1);
 	for(int index = 0; index < depthframe_width*depthframe_height; index++){
+		
 		//printf("depth sample%d\n", index);
+		//gets data into a text file
+		if(depthRawvals.is_open()){
+
+			ss << "dataPoint ";
+			ss << index;
+			ss << "of ";
+		    ss << dcount + " ";
+			ss << data.depthMap[index];
+			depthRawvals << ss.str();
+		}
+
 		depthframe.data[index]	 = data.depthMap[index];
 	}
-	//dcount++;
-	//printf("done\n");
-	//cv::waitKey(30);
-	//cv::imshow("test", depthframe);\
-	//	cv::waitKey(0);
-	//ostringstream stream;
-	//stream << dcount;
-	//stream << "dframe.jpg";
-	//cv::String dframe = stream.str();
-	//cv::imwrite(dframe, depthframe);
+
+	dcount++;
+	printf("done\n");
+	cv::waitKey(30);
+	cv::imshow("test", depthframe);
+		cv::waitKey(0);
+	ostringstream stream;
+	stream << dcount;
+	stream << "testframe.jpg";
+	cv::String dframe = stream.str();*/
+	cv::imwrite(dframe, depthframe);
 
 	//cloud.resize(data.verticesFloatingPoint.size());
 	//cloud.points.resize(data.vertices.size());
