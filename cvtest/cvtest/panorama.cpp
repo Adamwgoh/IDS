@@ -86,4 +86,3 @@ int main(int argc, TCHAR* argv[])
 	//cv::waitKey(1000000000);
 	
 }
-

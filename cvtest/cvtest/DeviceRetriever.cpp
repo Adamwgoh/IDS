@@ -8,7 +8,7 @@
 	bool DeviceRetriever::d_isDeviceFound = false;
 	int dcount = 0;
 	//boost::shared_ptr<pcl::visualization::PCLVisualizer> pclviewer;
-	void getRGBFrame(Mat* src, Mat& out, int frame_width, int frame_height);
+	void getRGBFrame(cv::Mat* src, cv::Mat& out, int frame_width, int frame_height);
 	float packRGB(uint8_t* rgb);
 	void cvtUVtoColorIdx(DepthSense::UV UV, int frame_height, int frame_width, int& uv_ColorIdx_x, int& uv_ColorIdx_y, int& uv_ColorIdx_Data );
 	void cvtMapRes(FPVertex* src, FPVertex* output, int src_width, int src_height, int out_width, int out_height);
@@ -81,14 +81,14 @@ void DeviceRetriever::onNewColorSample(ColorNode node, ColorNode::NewSampleRecei
 	int32_t colorframe_height = VGA_HEIGHT;
 	int32_t total_indices = colorframe_width*colorframe_height;
 
-	Mat* d_colorframe;
-	Mat* d_yuy2frame;
+	cv::Mat* d_colorframe;
+	cv::Mat* d_yuy2frame;
 	//uint8_t colorData[3*VGA_WIDTH*VGA_HEIGHT];
 	//I've made this variable static, assuming that the sample rate for both depth and color is the same
 	//	if it isn't, think of an alternative
 
 	//fills Mat with colorMap's data
-	d_yuy2frame = new Mat(Size(colorframe_width, colorframe_height), CV_8UC3, (void*)(const uint8_t*)data.colorMap);
+	d_yuy2frame = new cv::Mat(cv::Size(colorframe_width, colorframe_height), CV_8UC3, (void*)(const uint8_t*)data.colorMap);
 	//converts raw data from color frame into RGB Mat
 	//getRGBFrame(d_yuy2frame, *d_colorframe, colorframe_width, colorframe_height);
 	//
@@ -109,7 +109,7 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 	ofstream depthRawvals("depthRawvals.txt");
 	std::ostringstream ss;
 	printf("depth sample\n");
-	Mat depthframe = *new Mat(Size(depthframe_width, depthframe_height), CV_8UC1);
+	cv::Mat depthframe = *new cv::Mat(cv::Size(depthframe_width, depthframe_height), CV_8UC1);
 	for(int index = 0; index < depthframe_width*depthframe_height; index++){
 		
 		//printf("depth sample%d\n", index);
@@ -135,7 +135,7 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 	ostringstream stream;
 	stream << dcount;
 	stream << "testframe.jpg";
-	cv::String dframe = stream.str();*/
+	cv::String dframe = stream.str();
 	cv::imwrite(dframe, depthframe);
 
 	//cloud.resize(data.verticesFloatingPoint.size());
@@ -306,7 +306,7 @@ void DeviceRetriever::configureNode(Node node){
 }
 
 //saves frame. Note that extension of .jpg is added automatically. Do not add anymore .jpg extension. Also add a slash after url!
-void DeviceRetriever::saveColorFrame(const char* filename, const char* url, Mat* image){
+void DeviceRetriever::saveColorFrame(const char* filename, const char* url, cv::Mat* image){
 	std::string temp(url);
 	temp.append(filename);
 	temp.append(".jpg");
@@ -314,7 +314,7 @@ void DeviceRetriever::saveColorFrame(const char* filename, const char* url, Mat*
 }
 
 //saves frame. Note that extension of .jpg is added automatically. Do not add anymore .jpg extension. Also add a slash after url!
-void DeviceRetriever::saveDepthFrame(const char* filename, const char* url, Mat* image){
+void DeviceRetriever::saveDepthFrame(const char* filename, const char* url, cv::Mat* image){
 	std::string temp(url);
 	temp.append(filename);
 	temp.append(".jpg");
@@ -322,7 +322,7 @@ void DeviceRetriever::saveDepthFrame(const char* filename, const char* url, Mat*
 }
 
 //saves frame. Note that extension of .jpg is added automatically. Do not add anymore .jpg extension
-void DeviceRetriever::saveColorFrame(const char* filename, Mat* image){
+void DeviceRetriever::saveColorFrame(const char* filename, cv::Mat* image){
 	std::string temp(filename);
 	temp.append(".jpg");
 	cv::imwrite( temp, *image );
@@ -330,8 +330,8 @@ void DeviceRetriever::saveColorFrame(const char* filename, Mat* image){
 
 
 //saves frame. Note that extension of .jpg is added automatically. Do not add anymore .jpg extension
-void DeviceRetriever::saveDepthFrame(const char* filename, Mat* image){
-	String url(filename);
+void DeviceRetriever::saveDepthFrame(const char* filename, cv::Mat* image){
+	cv::String url(filename);
 	url.append(filename,".jpg");
 	cv::imwrite( url, *image );
 }
@@ -339,7 +339,7 @@ void DeviceRetriever::saveDepthFrame(const char* filename, Mat* image){
 //saves frame. Note that extension of .jpg is added automatically. Do not add anymore .jpg extension.
 void DeviceRetriever::savePCDFile(const char* filename, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud){
 		try{
-			String file = file.append(filename,".pcd");
+			cv::String file = file.append(filename,".pcd");
 			pcl::io::savePCDFileBinary(file, *cloud);
 		}catch(pcl::IOException e){
 			printf("IOException. Message : %s", e.what());
@@ -349,7 +349,7 @@ void DeviceRetriever::savePCDFile(const char* filename, pcl::PointCloud<pcl::Poi
 
 void DeviceRetriever::savePCDFile(const char* filename, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud){
 		try{
-			String file = file.append(filename,".pcd");
+			cv::String file = file.append(filename,".pcd");
 			pcl::io::savePCDFileBinary(file, *cloud);
 		}catch(pcl::IOException e){
 			printf("IOException. Message : %s", e.what());
@@ -511,7 +511,7 @@ void cvtMapRes(FPVertex* src, FPVertex* output, int src_width, int src_height, i
     }
 }
 
-void getRGBFrame(Mat* src, Mat& out, int frame_width, int frame_height){
+void getRGBFrame(cv::Mat* src, cv::Mat& out, int frame_width, int frame_height){
 
 	//YUY2 uses 4:2:2 sampling standard, that is : Y takes 4bits, U and V takes 2 bits, total 16bytes
 	//2pixels represented in 1 micropixels
@@ -563,7 +563,7 @@ void getRGBFrame(Mat* src, Mat& out, int frame_width, int frame_height){
 			}
 		}
 		
-				out = *new Mat(Size(frame_width, frame_height), CV_8UC3);
+				out = *new cv::Mat(cv::Size(frame_width, frame_height), CV_8UC3);
 				out.data = colorframe;
 		
 	}

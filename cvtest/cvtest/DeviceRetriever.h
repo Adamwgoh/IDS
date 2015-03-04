@@ -30,7 +30,6 @@
 
 #include "planefitting.h"
 
-using namespace cv;
 using namespace DepthSense;
 
 class DeviceRetriever{
@@ -40,11 +39,11 @@ DeviceRetriever();
 bool runNodes();
 void getNodes(Context context, DepthNode d_node, ColorNode c_node);
 
-//io
-static void saveColorFrame(const char* filename, Mat* image);
-static void saveColorFrame(const char* filename, const char* url, Mat* image);
-static void saveDepthFrame(const char* filename, Mat* image);
-static void saveDepthFrame(const char* filename, const char* url, Mat* image);
+//cv::
+static void saveColorFrame(const char* filename, cv::Mat* image);
+static void saveColorFrame(const char* filename, const char* url, cv::Mat* image);
+static void saveDepthFrame(const char* filename, cv::Mat* image);
+static void saveDepthFrame(const char* filename, const char* url, cv::Mat* image);
 static void savePCDFile(const char* filename, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 static void savePCDFile(const char* filename, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 static void viewCloud(const char* cloudname, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
