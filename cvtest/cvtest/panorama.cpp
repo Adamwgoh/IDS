@@ -4,8 +4,11 @@
 #include "stdafx.h"
 #include <cv.h>
 #include <highgui.h>
-#include <stitching\stitcher.hpp>
+#include <opencv2\stitching\stitcher.hpp>
 #include <sstream>
+
+#include <utility>
+#include <iostream>
 
 cv::Mat getHistogram(cv::Mat data){
 	cv::Mat rawdata = data;
@@ -26,63 +29,95 @@ cv::Mat getHistogram(cv::Mat data){
 	return *graph;
 }
 
+/**
+* calculates the normalized cross-correlation between the reference image and the target image.
+* A single run of this function only produces one cross-correlation value for a single translation.
+* Normalized cross correlation formula used is : 
+* Encc = (E[I0(xi) - ^I0][I1(xi+u) - ^I1])/(Sqrt(E[I0(xi) - ^I0]^2[I1(xi) - ^I1]^2))
+*
+* Excerpt taken from Computer Vision: Algorithms and Applications by Richard Szeliski
+**/
+float calcNCC(cv::Mat reference, cv::Mat target, int offx, int offy){
+	//this assumes both images are of the same size, as the system uses the same sensor capturing time-series images
+	//The offset of the target image from the reference image
+	int offsetx = offx;
+	int offsety = offy;
+	//the referencing image
+	cv::Mat ref = reference;//I1
+	//the target image
+	cv::Mat targ = target;//I0
+	int ref_val, targ_val;
+	float corr_val, norm_corr_val, ref_nval, targ_nval;
+	 
+	 //calculate mean of each images
+	 for(int i = 0; i < (targ.cols*targ.rows)-3; i++){
+		 //target dont move, so dont need to add offset to it
+
+		targ_nval += (targ.data[i] + targ.data[i + 1] + targ.data[i + 2])/3;
+	 }
+	 //^I = sumof I0(x)/N
+	 targ_nval /= targ.elemSize();
+
+	
+	 for(int j = offsety; j < ref.cols; j++){
+		 for(int i = offsetx; i < ref.rows; i++){
+			 //ref is the one only calculating the area of overlapping		 
+			 ref_nval += ((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2])/3);
+		 }
+	 }
+	 
+	 //mean of number of pixels in the patch
+	// printf("lol");
+	 
+	 ref_nval /= (ref.cols-offsety)*(ref.rows-offsetx);
+	 //printf("ref_nval = %f\n", ref_nval);
+	 for(int j = offsety; j < ref.cols; j++){
+		 for(int i = offsetx; i < ref.rows; i++){
+			//value is converted to greyscale first before calculating its difference from the mean
+			corr_val += (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval)*
+				(((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval);
+//			if(i != 0 || j != 0){
+				//printf("sum %d, ref_nval %f\n",((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3), ref_nval);
+//			}
+			//standard deviation of both images
+			norm_corr_val += (std::pow( (double) (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval),2)*
+				(std::pow( (double) (((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval),2)) );
+		 }
+	 }
+	 //printf("corr val : %f, norm_corr_val : %f\n", corr_val, norm_corr_val);
+	float Ecc = corr_val / std::sqrt(norm_corr_val);
+
+	//return value should be in the range of [-1,1]
+	return Ecc;
+}
+
 int main(int argc, TCHAR* argv[])
 {
+	//target image is the one not moving
+	cv::Mat target = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg");
+	//the reference image that is checked for a certain patch
+	cv::Mat ref = cv::imread("rawdata\\setthree_with_markers\\2cframe.jpg");
+	//printf("target channels : %d, ref channels : %d\n", target.channels(), ref.channels());
+	float max_val = 0;
+	int max_offsetx;
+	int max_offsety;
 	
 
-	cv::Mat frame1, frame2;
-	std::vector<cv::Mat> frames;
-	std::vector<cv::Rect> rois;
-	std::ostringstream ss;
-	//cv::Mat pano = *new cv::Mat();
-	//for(int i = 1; i < 3; i++){
-	//	//int i = 1;
-	//	
-	//	ss << "rawdata\\";
-	//	ss << i;
-	//	ss << "dframe.jpg";
-	//	cv::String url = "";
-	//	url = ss.str();
-	//	printf("url : %s", url.c_str());
-	//	cv::waitKey(0);
-	//	cv::Mat frame = *new cv::Mat();
-	//	frame = cv::imread(url);
-	//	
-	//	printf("Frame width : %d, height : %d\n", frame.rows, frame.cols);
-	//	frames.push_back(frame);
-	//	url = "";
-	//	ss.clear();
-	//	ss.str("");
-	//}
+	for(int offy = 0; offy < ref.cols; offy++){
+		for(int offx = 0; offx < ref.rows; offx++){
+			float ecc = calcNCC(ref, target, offx, offy);
+			printf("ecc with offset (%d,%d) is : %f\n", offx, offy, ecc);
+			if(ecc > max_val){
+				max_val = ecc;
+				max_offsetx = offx;
+				max_offsety = offy;
+			}	
+		}
+	}
 
-	//cv::waitKey(30);
-	//cv::Stitcher stitch = cv::Stitcher::createDefault(false);
-	//stitch.stitch(frames, pano);
+	printf("peak val is :%f\n", max_val);
+	while(true){
+	}
 
-	//	cv::imshow("panorama", pano);
-	frame1 = cv::imread("rawdata\\15dframe.jpg");
-	frame2 = getHistogram(frame1);
-	cv::imshow("histogram", frame2);
-	cv::waitKey(0);
-
-	//frame1 = cv::imread("..\\panorama_image1.jpg");
-	//frame2 = cv::imread("..\\panorama_image2.jpg");
-	//cv::imshow("frame1",frame1);
-	//cv::imshow("frame2", frame2);
-	//cv::Rect rect = cvRect(frame1.cols/2, 0, frame1.cols/2, frame1.rows); //second half of the first image
-	//cv::Rect rect2 = cvRect(0, 0, frame2.cols/2, frame2.rows); //first half of the second image
-
-	//rois.push_back(rect);
-	//rois.push_back(rect2);
-	//frames.push_back(frame1);
-	//frames.push_back(frame2);
-
-	//cv::waitKey(5000);
-	////printf("frame1 : %d, frame2 : %d, pano : %d\n", frame1.channels(), frame2.channels(), pano.channels());
-	//cv::Stitcher stitch = cv::Stitcher::createDefault(false);
-	//stitch.stitch(frames, pano);
-	//cv::imshow("panorama",pano);
-
-	//cv::waitKey(1000000000);
-	
 }
+

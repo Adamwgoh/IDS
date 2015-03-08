@@ -7,6 +7,7 @@
 	DepthNode DeviceRetriever::d_depthNode = DepthNode();
 	bool DeviceRetriever::d_isDeviceFound = false;
 	int dcount = 0;
+	int ccount = 0;
 	//boost::shared_ptr<pcl::visualization::PCLVisualizer> pclviewer;
 	void getRGBFrame(cv::Mat* src, cv::Mat& out, int frame_width, int frame_height);
 	float packRGB(uint8_t* rgb);
@@ -89,8 +90,18 @@ void DeviceRetriever::onNewColorSample(ColorNode node, ColorNode::NewSampleRecei
 
 	//fills Mat with colorMap's data
 	d_yuy2frame = new cv::Mat(cv::Size(colorframe_width, colorframe_height), CV_8UC3, (void*)(const uint8_t*)data.colorMap);
+	getRGBFrame(d_yuy2frame, *d_colorframe, colorframe_width, colorframe_height);
+	std::ostringstream ss;
+	ss << "rawdata\\";
+	ss << ccount;
+	ss << "cframe.jpg";
+	cv::String url = ss.str();
+	cv::imwrite(url,*d_colorframe);
+	ccount++;
 	//converts raw data from color frame into RGB Mat
-	//getRGBFrame(d_yuy2frame, *d_colorframe, colorframe_width, colorframe_height);
+	
+	
+
 	//
 	//for(int index = 0; index < colorframe_width*colorframe_height; index++){
 	//	colorData[3*index]	 = data.colorMap[3*index + 2];//R
@@ -106,7 +117,13 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 	
 	int32_t depthframe_width  = QQVGA_WIDTH;
 	int32_t depthframe_height = QQVGA_HEIGHT;
-	ofstream depthRawvals("depthRawvals.txt");
+	ofstream depthRawvals;
+	std::ostringstream url;
+	url << "rawdata\\";
+	url << dcount;
+	url << "depthrawvals.txt";
+	cv::String urls = url.str();
+	depthRawvals.open(urls);
 	std::ostringstream ss;
 	printf("depth sample\n");
 	cv::Mat depthframe = *new cv::Mat(cv::Size(depthframe_width, depthframe_height), CV_8UC1);
@@ -118,23 +135,31 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 
 			ss << "dataPoint ";
 			ss << index;
-			ss << "of ";
-		    ss << dcount + " ";
+			ss << " of ";
+		    ss << dcount ;
+			ss << " depth sample	";
 			ss << data.depthMap[index];
-			depthRawvals << ss.str();
+			ss << "\n";
 		}
-
-		depthframe.data[index]	 = data.depthMap[index];
+		if(data.depthMap[index] != 32001){
+			depthframe.data[index]	 = data.depthMap[index];
+		}else{
+			depthframe.data[index] = data.depthMap[index];
+		}
+		
 	}
-
+	ss << "=====================================\n\n";
+	depthRawvals << ss.str();
+	depthRawvals.close();
 	dcount++;
 	printf("done\n");
 	cv::waitKey(30);
 	cv::imshow("test", depthframe);
-		cv::waitKey(0);
+	cv::waitKey(0);
 	ostringstream stream;
+	stream << "rawdata\\";
 	stream << dcount;
-	stream << "testframe.jpg";
+	stream << "depthframe.jpg";
 	cv::String dframe = stream.str();
 	cv::imwrite(dframe, depthframe);
 

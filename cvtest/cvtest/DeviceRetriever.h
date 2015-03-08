@@ -1,5 +1,7 @@
 #include <vector>
 #include <exception>
+#include <iostream>
+#include <fstream>
 #include <DepthSense.hxx>
 #include <cv.h>
 #include <highgui.h>
