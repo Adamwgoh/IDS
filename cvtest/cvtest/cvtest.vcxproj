@@ -107,6 +107,7 @@
       <AdditionalIncludeDirectories>C:\Program Files\SoftKinetic\DepthSenseSDK\include;C:\opencv249\opencv\build\include\;C:\opencv249\opencv\build\include\opencv;C:\tesseract\include;C:\tesseract\include\leptonica;C:\tesseract\include\tesseract;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>C:\Program Files\SoftKinetic\DepthSenseSDK\lib;C:\opencv249\opencv\build\x64\vc10\lib;C:\tesseract\prebuilt\x64;C:\tesseract\prebuilt\x86;C:\opencv249\opencv\build\x64\vc10\staticlib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -119,6 +120,7 @@
       <EntryPointSymbol>
       </EntryPointSymbol>
       <NoEntryPoint>false</NoEntryPoint>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ProjectReference />
     <ProjectReference>
