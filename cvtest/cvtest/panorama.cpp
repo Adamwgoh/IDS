@@ -50,44 +50,85 @@ float calcNCC(cv::Mat reference, cv::Mat target, int offx, int offy){
 	cv::Mat ref = reference;//I1
 	//the target image
 	cv::Mat targ = target;//I0
+	if(ref.channels() != targ.channels()){
+		std::cout << "two images have different number of channels!\n" << std::endl;
+		return 0;
+	}
 	int ref_val, targ_val;
 	float corr_val, norm_corr_val, ref_nval, targ_nval;
-	 
-	 //calculate mean of each images
-	 for(int i = 0; i < (targ.cols*targ.rows)-3; i++){
-		 //target dont move, so dont need to add offset to it
+	
+	if(ref.channels() == 1){
+		 //calculate mean of each images
+		 for(int i = 0; i < (targ.cols*targ.rows)-3; i++){
+			//target dont move, so dont need to add offset to it
 
-		targ_nval += (targ.data[i] + targ.data[i + 1] + targ.data[i + 2])/3;
-	 }
-	 //^I = sumof I0(x)/N
-	 targ_nval /= targ.elemSize();
+			targ_nval += (int) targ.data[i];
+		 }
+
+		 //^I = sumof I0(x)/N
+		 targ_nval /= targ.elemSize();
 
 	
-	 for(int j = offsety; j < ref.cols; j++){
-		 for(int i = offsetx; i < ref.rows; i++){
-			 //ref is the one only calculating the area of overlapping		 
-			 ref_nval += ((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2])/3);
+		 for(int j = offsety; j < ref.cols; j++){
+			 for(int i = offsetx; i < ref.rows; i++){
+				 //ref is the one only calculating the area of overlapping		 
+				 ref_nval += (int) ref.at<uchar>(i,j);
+			 }
+		 }	
+		
+	}else if(ref.channels() == 3){
+		 //calculate mean of each images
+		 for(int i = 0; i < (targ.cols*targ.rows)-3; i++){
+			//target dont move, so dont need to add offset to it
+
+			targ_nval += (targ.data[i] + targ.data[i + 1] + targ.data[i + 2])/3;
 		 }
-	 }
+
+		 //^I = sumof I0(x)/N
+		 targ_nval /= targ.elemSize();
+
+	
+		 for(int j = offsety; j < ref.cols; j++){
+			 for(int i = offsetx; i < ref.rows; i++){
+				 //ref is the one only calculating the area of overlapping		 
+				 ref_nval += ((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2])/3);
+			 }
+		 }	
+	}
+
 	 
+
 	 //mean of number of pixels in the patch
 	// printf("lol");
-	 
-	 ref_nval /= (ref.cols-offsety)*(ref.rows-offsetx);
-	 //printf("ref_nval = %f\n", ref_nval);
-	 for(int j = offsety; j < ref.cols; j++){
-		 for(int i = offsetx; i < ref.rows; i++){
-			//value is converted to greyscale first before calculating its difference from the mean
-			corr_val += (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval)*
-				(((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval);
-//			if(i != 0 || j != 0){
-				//printf("sum %d, ref_nval %f\n",((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3), ref_nval);
-//			}
-			//standard deviation of both images
-			norm_corr_val += (std::pow( (double) (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval),2)*
-				(std::pow( (double) (((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval),2)) );
+
+	 if(ref.channels() == 1){
+	
+
+	 	 ref_nval /= (ref.cols-offsety)*(ref.rows-offsetx);
+
+		 for(int j = offsety; j < ref.cols; j++){
+			 for(int i = offsetx; i < ref.rows; i++){
+				corr_val += ((int) ref.at<uchar>(i,j) - ref_nval)*((int) targ.at<uchar>(i,j) - targ_nval);
+				norm_corr_val += ( std::pow((double) ((int) ref.at<uchar>(i,j)) ,2) ) * ( std::pow((double) ((int) targ.at<uchar>(i-offsetx,j-offsety) - targ_nval),2) );
+			 }
+		 }
+	 }else if(ref.channels() == 3){
+
+		 ref_nval /= (ref.cols-offsety)*(ref.rows-offsetx);
+		 //printf("ref_nval = %f\n", ref_nval);
+		 for(int j = offsety; j < ref.cols; j++){
+			 for(int i = offsetx; i < ref.rows; i++){
+				//value is converted to greyscale first before calculating its difference from the mean
+				corr_val += (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval)*
+					(((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval);
+
+				//standard deviation of both images
+				norm_corr_val += (std::pow( (double) (((ref.at<cv::Vec3b>(i,j)[0] + ref.at<cv::Vec3b>(i,j)[1] + ref.at<cv::Vec3b>(i,j)[2]) /3) - ref_nval),2)*
+					(std::pow( (double) (((targ.at<cv::Vec3b>(i-offsetx,j-offsety)[0] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[1] + targ.at<cv::Vec3b>(i-offsetx,j-offsety)[2])/3) - targ_nval),2)) );
+			 }
 		 }
 	 }
+
 	 //printf("corr val : %f, norm_corr_val : %f\n", corr_val, norm_corr_val);
 	float Ecc = corr_val / std::sqrt(norm_corr_val);
 
@@ -100,14 +141,16 @@ float calcNCC(cv::Mat reference, cv::Mat target, int offx, int offy){
 *	that is, the value must be between 0 to 100
 *	Output is the highest cross-correlation value within the given window.
 **/
-float Norm_CrossCorr(cv::Mat imgleft, cv::Mat imgright, int wcoverage, int hcoverage){
+float Norm_CrossCorr(cv::Mat imgleft, cv::Mat imgright, int startx, int starty, int wcoverage, int hcoverage){
 	std::vector<float> corr_list = *new std::vector<float>();
 	
 	float corr = 0;
 	//calculate corr based on the percentage of coverage
-	for(int offsety = 0; offsety < (imgleft.rows*(hcoverage/100)); offsety++){
-		for(int offsetx = 0; offsetx < (imgleft.cols*(wcoverage/100)); offsetx++){
-			corr_list.push_back(calcNCC(imgleft, imgright, offsetx, offsety));
+	for(int offsety = startx; offsety < (imgleft.rows*(hcoverage/100)); offsety++){
+		for(int offsetx = starty; offsetx < (imgleft.cols*(wcoverage/100)); offsetx++){
+			float corrval = calcNCC(imgleft, imgright, offsetx, offsety);
+
+			corr_list.push_back(corrval);
 		}
 	}
 
@@ -117,7 +160,7 @@ float Norm_CrossCorr(cv::Mat imgleft, cv::Mat imgright, int wcoverage, int hcove
 		}
 	}
 
-
+	printf(" biggest corr : %f\n", corr);
 	return corr;
 }
 
@@ -126,7 +169,7 @@ float Norm_CrossCorr(cv::Mat imgleft, cv::Mat imgright, int wcoverage, int hcove
  * If the input image size is not in the power of 2, zeros-padding will be added to the size of the nearest power of 2
  */
 cv::Mat reMap(cv::Mat img){
-	cv::Mat image = img;
+	cv::Mat image;
 	int rows = img.rows;
 	int cols = img.cols;
 	int newrows = 0;
@@ -134,43 +177,45 @@ cv::Mat reMap(cv::Mat img){
 	
 
 	if((rows & (rows -1) ) != 0){///bitwise element addition not equals 0, which is not of ^2
-		//pad 0 to the nearest power of 2 size
+		//convert it to the nearest power of 2 size
 		newrows = std::pow(2, ceil(log((float) rows)/log(2.0)) );
 	}
 	
 	if((cols & (cols-1)) != 0){
+		//convert it to the nearest power of 2 size
 		newcols = std::pow(2, ceil(log((float) cols)/log(2.0)) );
-
 	}
-		if(newrows == 0)	newrows = rows;
-		if(newcols == 0)	newcols = cols;
+
+	if(newrows == 0){	newrows = rows;	}
+	if(newcols == 0){	newcols = cols;	}
 	
-
-	//std::cout << "newrows : " << newrows << ", newcols " << newcols << std::endl;
-	image = *new cv::Mat(newrows, newcols, CV_8UC3);
-
-	for(int j = 0; j < img.cols; j++){
-		for(int i = 0; i < img.rows; i++){
-			image.at<cv::Vec3b>(i,j) = img.at<cv::Vec3b>(i,j);
+		if(img.channels() ==1){
+			image = *new cv::Mat(newrows, newcols, CV_8UC1);
+		}else if(img.channels() == 3){
+			image = *new cv::Mat(newrows, newcols, CV_8UC3);
 		}
-	}
 
-	for(int j = img.cols; j < newcols; j++){
-		for(int i = img.rows; i < newrows; i++){
-			//printf("padding with col : %d, row : %d\n",i,j);
-			image.at<cv::Vec3b>(i,j)[0] = 0;
-			image.at<cv::Vec3b>(i,j)[1] = 0;
-			image.at<cv::Vec3b>(i,j)[2] = 0;
-		}
-	}
-
-	for(int j = 0; j < image.cols; j++){
-		for(int	i = 0; i < image.rows; i++){
-
-			//printf("(%d, %d) value r : %d, g : %d, b : %d\n",i, j, image.at<cv::Vec3b>(i,j)[0], image.at<cv::Vec3b>(i,j)[1], image.at<cv::Vec3b>(i,j)[2]);
-			//std::cout << (int) image.at<cv::Vec3b>(i,j)[0] << (int)image.at<cv::Vec3b>(i,j)[1] << (int) image.at<cv::Vec3b>(i,j)[2] << std::endl;
-		} 
-	}
+	for(int j = 0; j < newcols; j++){
+		for(int i = 0; i < newrows; i++){
+			if(image.channels() == 1){
+				//printf("i : %d, j : %d\n", i,j);
+				if(i < img.rows && j < img.cols){
+					image.at<uchar>(i,j) = img.at<uchar>(i,j);
+				}else{
+					image.at<uchar>(i,j) = 0;
+				}
+				
+			}else{
+				if(i < img.rows && j < img.cols){
+					image.at<cv::Vec3b>(i,j) = img.at<cv::Vec3b>(i,j);
+				}else{
+					image.at<cv::Vec3b>(i,j)[0] = 0;
+					image.at<cv::Vec3b>(i,j)[1] = 0;
+					image.at<cv::Vec3b>(i,j)[2] = 0;
+				}
+			}
+		}//end for inner loop
+	}//end for loop
 
 	return image;
 }
@@ -211,14 +256,14 @@ std::vector<int>* FFT(std::vector<int> *data, bool inverse){
 	double wpi;
 	double wr;
 	double wi;
-	
+	int istep;
 	//mmax is the number of times the calculation should be at maximum,
 	//once the maximum amount of times to calculate goes over the data size, it stops
 	while( N > mmax){//nof point transform	
 		//euler's angle value (2Pi/N)
 		if(inverse)	theta = two_pi/mmax;	else theta = -two_pi/mmax;		
 		//next number of splits and calculations
-		int istep = mmax << 1;
+		istep = mmax << 1;
 		wtemp = std::sin(0.5*theta);
 		wpr = -2.0*wtemp*wtemp;
 		wpi = std::sin(theta);
@@ -227,25 +272,33 @@ std::vector<int>* FFT(std::vector<int> *data, bool inverse){
 		//half of theta
 
 
-		printf("Outer loop : mmax : %d, istep : %d\n", mmax, istep);
+		//printf("Outer loop : mmax : %d, istep : %d\n", mmax, istep);
 		//internal loop
 		for(int m = 0; m < mmax; m+=2){//size of point transform
-			printf("	inner loop1 : m : %d, weight = %f\n", m, wr);
+			//printf("	inner loop1 : m : %d, weight = %f\n", m, wr);
 			//cv::waitKey(0);
 			//get the Es and Os from the data. 
 			for(int i = m; i < N-mmax; i+= istep){
 				int j = i + mmax;
-				printf("		innerloop1 : i : %d, j = %d\n", i,j);
+				//printf("		innerloop1 : i : %d, j = %d\n", i,j);
 				double tempreal = wr*data->at(j);
 								
-				data->at(j) = data->at(i) - tempreal;
-				data->at(i) += tempreal;
+				data->at(j) = (int) data->at(i) - tempreal;
+				data->at(i) += (int) tempreal;
+				//printf("data at j : %d, data at i : %d\n", data->at(j), data->at(i));
 			}
 			wr = (wr*wpr) + wr;
 		}
 		mmax = istep;
 
 	}//end while
+	
+	//if(!inverse){
+	//	for(int i = 0; i < istep; i++){
+	//		data->at(i) /= istep;
+	//		
+	//	}
+	//}
 
 	return data;
 }
@@ -264,30 +317,41 @@ cv::Mat* FFT(cv::Mat* data, int width, int height, bool inverse){//data, cols(64
 	for(int j = 0; j < height; j++){//480
 		//TODO: Put your data in here first!
 		for(int x = 0; x < width; x++){//640
-			printf("x : %d, j : %d\n", x,j);
+			//printf("x : %d, j : %d\n", x,j);
 			row->at(x)  = (int) data->at<uchar>(j,x);
 		}
-		row = bitReversal(row);
+
+		//std::vector<int>* temp_row = bitReversal(row);
 		std::vector<int>* temp_row = FFT(row, false);
 		for(int x = 0; x < width; x++){
-			printf("x : %d, j : %d\n", x,j);
-			data->at<uchar>(j,x) = (uchar) row->at(x);
+
+			if(temp_row->at(x) < 0){
+				temp_row->at(x) = 0;
+			}
+		
+			data->at<uchar>(j,x) = (uchar) temp_row->at(x);
 		}
 	}
+	
+	cv::imshow("datarow", *data);
+	cv::waitKey(0);
 
 		//perform fft on each col can stuff result back into the matrix
-	for(int i = 0; i < width; i++){
-		printf("i : %d\n", i);
-		for(int y = 0; y < height; y++){
-			row->at(y)  = (int) data->at<uchar>(i,y);
+	for(int i = 0; i < width; i++){//640
+		//printf("i : %d\n", i);
+		for(int y = 0; y < height; y++){//480
+			col->at(y)  = (int) data->at<uchar>(y,i);
 		}
 
 		col = bitReversal(col);
-		printf("size of col %d\n", sizeof(col));
+		//printf("size of col %d\n", sizeof(col));
 		std::vector<int>* temp_col = FFT(col, false);
 		for(int j = 0; j < height; j++){	
-			printf("i : %d, j : %d\n", i,j);
-			data->at<uchar>(i,j) = (uchar) temp_col->at(j);
+
+			if(temp_col->at(j) < 0){
+				temp_col->at(j) = 0;
+			}
+			data->at<uchar>(j,i) = (uchar) temp_col->at(j);
 		}
 	}
 
@@ -315,32 +379,29 @@ cv::Mat stitching(std::vector<cv::Mat> imgs){
 int main(int argc, TCHAR* argv[])
 {
 	//target image is the one not moving
-	cv::Mat target = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat target3;
-	cv::Mat target6;
-	cv::Mat target9;
-		//cv::GaussianBlur(target, target9, cv::Size(21,21), 0,0);
+	cv::Mat img1 = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
 	//the reference image that is checked for a certain patch
 	cv::Mat img2 = cv::imread("rawdata\\setthree_with_markers\\2cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
+	img2 = reMap(img2);
+	//cv::GaussianBlur(target, target9, cv::Size(21,21), 0,0);
+
 
 	cv::Mat* ref = &img2;
+	cv::Mat* target = &img1;
+	std::vector<float> *corrs = new std::vector<float>();
 
-	cv::waitKey(30);
-	//cv::imshow("target", target3);
-	//cv::imshow("target6", target6);
-	//cv::imshow("target9", target9);
+	//float correlation = Norm_CrossCorr(*ref,*target,ref->cols*.5, 0, 100,100);
+	//printf("correlation is %f\n", correlation);
 	cv::waitKey(0);
+
 	//get each row out and reverse them, then perform FFT
-
 	cv::Mat* result = FFT(ref,ref->cols, ref->rows, false);
-	if(result->empty()){
-		printf("no result \n");
-	}else{
-		printf(" lol \n");
-	}
+	cv::Mat* kono = FFT(result, result->cols, result->rows, true);
 
-	cv::waitKey(30);
-	cv::imshow("result", *result);
+
+	//cv::waitKey(30);
+	cv::imshow("result", *ref);
+	cv::imshow("kono", *kono);
 	cv::waitKey(0);
 
 	
