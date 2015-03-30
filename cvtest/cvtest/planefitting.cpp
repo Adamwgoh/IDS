@@ -1,4 +1,16 @@
 #include "planefitting.h"
+#include <cv.h>
+#include <highgui.h>
+#include <opencv2\stitching\stitcher.hpp>
+#include <sstream>
+#include <cmath>
+#include <iostream>
+#include <fstream>
+#include <math.h>
+#include <time.h>
+
+#include <utility>
+#include <iostream>
 
 void RANSAC(pcl::PointCloud<pcl::PointXYZ>::Ptr inputcloud){
 	/**
@@ -30,20 +42,22 @@ void RANSAC(pcl::PointCloud<pcl::PointXYZ>::Ptr inputcloud){
 	sac.getModelCoefficients (coeff);
 }
 
-void getHistogram(cv::Mat data){
+cv::Mat getHistogram(cv::Mat data){
 	cv::Mat rawdata = data;
-	cv::Mat* graph = new cv::Mat();
+	cv::Mat* graph = new cv::Mat(rawdata.rows, rawdata.cols, CV_8UC1);
 	float average_val = 0;
-	for (int col = 0; col < rawdata.cols; col++){
-		for(int row = 0; row < rawdata.rows; row++){
-			average_val += rawdata.data[row + col*rawdata.rows];
+	for (int row = 0; row < rawdata.rows; row++){
+		for(int col = 0; col < rawdata.cols; col++){
+			//printf("data val is %d\n", rawdata.data[row + (col)*(rawdata.rows)]);
+			average_val += rawdata.data[row + (col)*(rawdata.rows)];
+			//printf("curr row : %d, curr col : %d, current average val : %f\n", row, col, average_val);
 		}
 
 		average_val /= rawdata.rows;
-		printf("average_val : %d\n", average_val);
-		graph->data[((int) average_val) * rawdata.rows + col] = 255;
+		//printf("average_val : %f\n", average_val);
+		graph->data[row + ((int) average_val*rawdata.rows)] = 255;
 	}
 
-
+	return *graph;
 }
 
