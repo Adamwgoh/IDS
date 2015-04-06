@@ -1,7 +1,6 @@
 #include "MyForm.h"
 #include "stdafx.h"
 
-
 using namespace System;
 using namespace System::Windows::Forms;
 
@@ -10,6 +9,7 @@ using namespace System::Windows::Forms;
 int WinMain(){
 	Application::EnableVisualStyles();
 	Application::SetCompatibleTextRenderingDefault(false);
+
 
 	cvtest::MyForm form;
 	Application::Run(%form);

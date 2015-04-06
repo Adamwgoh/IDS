@@ -48,13 +48,10 @@ cv::Mat getHistogram(cv::Mat data){
 	float average_val = 0;
 	for (int row = 0; row < rawdata.rows; row++){
 		for(int col = 0; col < rawdata.cols; col++){
-			//printf("data val is %d\n", rawdata.data[row + (col)*(rawdata.rows)]);
 			average_val += rawdata.data[row + (col)*(rawdata.rows)];
-			//printf("curr row : %d, curr col : %d, current average val : %f\n", row, col, average_val);
 		}
 
 		average_val /= rawdata.rows;
-		//printf("average_val : %f\n", average_val);
 		graph->data[row + ((int) average_val*rawdata.rows)] = 255;
 	}
 

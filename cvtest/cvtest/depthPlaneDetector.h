@@ -29,10 +29,11 @@ class depthPlaneDetector{
 	
 		void setFoundKeyPt(bool found);
 		bool isKeyPtFound();
+		int getLeastSquare(cv::Mat src, int win_x, cv::Size window);
+		cv::Mat drawPolynomial(cv::Mat graph);
 
 	//private functions
 	private : 
-		
 		void saveDepthFrame(const char* filename, cv::Mat* image, int framecount);
 
 	//public variables

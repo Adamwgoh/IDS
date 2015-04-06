@@ -118,12 +118,13 @@ std::vector<cv::Mat> ImageRegistration::dft(cv::Mat* img){
  *
  **/
 cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int stitchy){
-	cv::Mat final(cv::Size(img1.cols + img2.cols - (img1.cols-stitchx), img1.rows + img2.rows - (img1.rows-stitchy)),CV_8UC1);
-	cv::Mat roi1(final, cv::Rect(0, 0,  img2.cols, img2.rows));
-	cv::Mat roi2(final, cv::Rect(stitchx, stitchy, img1.cols, img1.rows));
-	img1.copyTo(roi1);
-	img2.copyTo(roi2);
 
+	cv::Mat final = cv::Mat(cv::Size(img1.cols + stitchx, img1.rows + stitchy),CV_8UC1);
+	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, 0,  img1.cols, img1.rows));
+	img1.copyTo(roi1);
+	cv::Mat roi2 = cv::Mat(final, cv::Rect(stitchx, stitchy, img2.cols, img2.rows));
+	img2.copyTo(roi2);
+	imshow("crop", roi2);
 	imshow("stitch", final);
 	
 	return final;
@@ -145,13 +146,18 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 	int finalx, finaly = 0;
 	//calculate corr based on the percentage of coverage
 	printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
-	int coverx = 0;
-	int covery = 0;
+
 	
-	for(int offsety = covery; offsety < (L_src.rows); offsety++){
-		for(int offsetx = coverx; offsetx < (L_src.cols); offsetx++){
+	for(int offsety = 0; offsety < L_src.rows; offsety++){
+		for(int offsetx = L_src.cols-1; offsetx > 0; offsetx--){
+
+			//cv::imshow("current correlation test", stitch(L_src, R_src, offsetx, offsety));
 			printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
-			double corrval = calcCrossVal(L_src, L_src, offsetx, offsety,cv::Size(0,0));
+			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,cv::Size(0,0));
+			printf("corrval : %f\n", corrval);
+		
+			//cv::waitKey(30);
+			//cv::waitKey(0);
 			assert(corrval <= 1);	assert(corrval >= -1);
 			coord = std::make_pair(offsetx,offsety);
 			result.push_back(std::make_pair(coord, corrval));
@@ -197,19 +203,19 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 	int offsetx = offx;
 	int offsety = offy;
 
-	double ref_val, targ_val;
-	double corr_val, norm_corr_val1, norm_corr_val2, ref_nval, targ_nval;
-	double ref_variance = 0;
-	double targ_variance = 0;
+	double ref_val = 0, targ_val = 0;
+	double corr_val = 0;
+	double ref_nval = 0, targ_nval = 0;
+	double sq_ref_variance = 0, sq_targ_variance = 0;
 
 	//calculate mean of the window patch, the moving window is the target image
 	for(int j = 0; j < targ.cols-offsetx; j++){
 		for(int i = 0; i < targ.rows-offsety; i++){
-	
+
+
 			targ_nval += (int) targ.at<uchar>(i,j);
 		}
 	}
-
 	targ_nval = targ_nval / ((targ.cols-offsetx)*(targ.rows-offsety));
 
 	//mean for reference image, the image that stay stationary
@@ -219,41 +225,40 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 			ref_nval += (int) ref.at<uchar>(i,j);
 		}
 	}
-	
 	ref_nval = ref_nval / ((ref.cols-offsetx)*(ref.rows-offsety));
 
 	//calculate Ecc with the given mean for each image
 	for(int j = offsetx; j < ref.cols; j++){
 		for(int i = offsety; i < ref.rows; i++){
 
-			int ref_val = (int) ref.at<uchar>(i,j);
-			int targ_val = (int) targ.at<uchar>(i-offsety, j-offsetx);
-			ref_variance +=  ((double) ref_val - ref_nval);
-			targ_variance += ((double) targ_val - targ_nval);
+			int ref_val = 0;
+			int targ_val = 0;
+			ref_val = (int) ref.at<uchar>(i,j) - ref_nval;
+			targ_val = (int) targ.at<uchar>(i-offsety, j-offsetx) - targ_nval;
+			double reftarg_val = ref_val*targ_val;
+			corr_val += reftarg_val;
+
+			sq_ref_variance += std::pow(((double) ref_val - ref_nval), 2);
+			sq_targ_variance += std::pow(((double) targ_val - targ_nval), 2);
 		}
 	}
 
-	corr_val = ref_variance*targ_variance;
-	//printf("corr_val : %f\n", corr_val);
-	//printf("denom : %f\n", std::sqrt( std::pow(norm_corr_val1,2)*std::pow(norm_corr_val2,2) ));
-	double denom = std::sqrt( std::pow(ref_variance,2)*std::pow(targ_variance,2) );
+	double denom = 0;
+	denom = std::sqrt( sq_ref_variance*sq_targ_variance );
+	printf("corr_val %f, denom %f\n", corr_val, denom);
 
-	//value is too small
-	if(denom <= 0.000000000001 && denom > 0){
-		return 0;
-	}else if(corr_val <= 0.000000000001 &&  corr_val > 0){
+	//adding a 0.0 as a work around to having -0.0 as a value for double)
+	if((0.0 + denom) == 0){
+		printf("denom is 0\n");
+		return 0;//denom is 0. Is returning 0 correct?
+	}else if((0.0 + corr_val) == 0){
+		printf("corr_val is 0\n");
 		return 0;
 	}
-
+	
 	assert(denom != 0 && corr_val != 0);
 	double Ecc = corr_val / denom;
-
-
-	//printf("ref_variance %f, targ_variance : %f, corr_val : %f, denom : %f\n", ref_variance, targ_variance, corr_val, denom);
 	printf("Ecc val : %f\n", Ecc);
-	if(Ecc <= 1 && Ecc >= -1){
-		printf("ref_variance %f, targ_variance : %f, corr_val : %f, denom : %f\n", ref_variance, targ_variance, corr_val, denom);
-	}
 	assert(Ecc <= 1 && Ecc >= -1);
 
 	return Ecc;
@@ -311,9 +316,13 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr ImageRegistration::cvtMat2Cloud(cv::Mat* src
 		for(int j = 0; j < img.cols; j++){
 			for(int i = 0; i < img.rows; i++){
 				//printf("j : %d, i : %d\n", j, i);
-				pcl::PointXYZ point(j, i,(int) img.at<uchar>(i,j));
+				//printf("val : %d\n", (int) img.at<uchar>(i, j));
+				if((int)img.at<uchar>(i, j) > 5){
 
-				cloud->at(j, i) = point;
+					// less than 5 depth is considered as noise and thrown away
+					pcl::PointXYZ point(j, i,(int) img.at<uchar>(i,j));
+					cloud->at(j, i) = point;
+				}
 			}
 		}		
 	}else if(img.channels() == 3){
@@ -373,10 +382,10 @@ int main(){
 	clock_t timer;
 	timer = clock();
 	//target image is the one not moving
-	cv::Mat img1 = cv::imread("rawdata\\test\\left_testframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\4depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat img1 = cv::imread("rawdata\\setthree_with_markers\\2cframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\10depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	//the reference image that is checked for a certain patch
-	cv::Mat img2 = cv::imread("rawdata\\test\\right_testframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat img2 = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
 
 	cv::GaussianBlur(img1, img1, cv::Size(21,21), 0, 0);
 	cv::GaussianBlur(img2, img2, cv::Size(21,21), 0,0);
@@ -387,43 +396,27 @@ int main(){
 	//cv::imshow("leftframe", img1);
 	//cv::imshow("rightframme", img2);
 
-	ImageRegistration imgreg = ImageRegistration();
-	/*std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,1.0,1.0, cv::Size(0,0));
-	cv::Mat corresult =imgreg.stitch(*ref,*target, result.first.first, result.first.second);
-	std::ostringstream stream;
-	stream << "rawdata\\result\\";
-	stream << "nccstitch.jpg";
-	cv::String filename = stream.str();
-	cv::imwrite(filename, corresult);*/
-	depthPlaneDetector plane_detector(&depth1, 0, 0);
-	cv::Mat depthgraph = plane_detector.displayDepthGraph(depth1, 0, 0);
-	//once you have the depth visualization, convert it into a 1d pointcloud to perform ransac
+	//ImageRegistration imgreg = ImageRegistration();
+	//std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,1.0,1.0, cv::Size(0,0));
+	//cv::Mat corresult =imgreg.stitch(*ref,*target, result.first.first, result.first.second);
+	//std::ostringstream stream;
+	//stream << "rawdata\\result\\";
+	//stream << "nccstitch.jpg";
+	//cv::String filename = stream.str();
+	//cv::imwrite(filename, corresult);
 
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr oridepth = imgreg.cvtMat2Cloud(depth1, 0, 0);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr testcloud = imgreg.cvtMat2Cloud(&oridepth);
+	//cv::imshow("median_depth", depth1);
+	//cv::waitKey(30);
+	depthPlaneDetector detector(&depth1, 41, 20);
+	cv::Mat result = detector.drawPolynomial(detector.displayDepthGraph(depth1, 0, 0));
 
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr post_testcloud = imgreg.RANSAC(testcloud);
-	pcl::visualization::CloudViewer viewer("cloud");
-	viewer.showCloud(testcloud, "testcloud");
-	cv::waitKey(30);
-	while(!viewer.wasStopped()){
-		if(cv::waitKey(0)){
-			break;
-		}
-	}
-	cv::Mat result = imgreg.cvCloud2Mat(testcloud);
-	printf("result cols : %d, rows : %d\n", result.cols, result.rows);
-	cv::imshow("result", result);
-	cv::waitKey(30);
-	
-//	cv::Mat inlier_depth = plane_detector.displayDepthGraph(result, 0, 0);
-	cv::imshow("oridepth", ori_depth);
-	//cv::imshow("inlier_depth", inlier_depth);
+	cv::imshow("polynomial result", result);
+	cv::imshow("original depthgraph", detector.displayDepthGraph(depth1, 0, 0));
 	cv::waitKey(0);
-	
-
 	timer = clock() - timer;
 	printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
 	cv::waitKey(0);
+
+	return 0;
 }
