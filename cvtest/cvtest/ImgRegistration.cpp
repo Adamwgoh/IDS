@@ -118,11 +118,19 @@ std::vector<cv::Mat> ImageRegistration::dft(cv::Mat* img){
  *
  **/
 cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int stitchy){
+	int neg_stitchy = stitchy;
+	int pos_stitchy = stitchy;
 
-	cv::Mat final = cv::Mat(cv::Size(img1.cols + stitchx, img1.rows + stitchy),CV_8UC1);
-	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, 0,  img1.cols, img1.rows));
+	if(stitchy < 0){
+		neg_stitchy = std::abs(stitchy);
+		pos_stitchy = 0;
+	}
+
+	cv::Mat final = cv::Mat(cv::Size(img1.cols + stitchx, img1.rows + 2*neg_stitchy),CV_8UC1);
+	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, neg_stitchy,  img1.cols, img1.rows));
 	img1.copyTo(roi1);
-	cv::Mat roi2 = cv::Mat(final, cv::Rect(stitchx, stitchy, img2.cols, img2.rows));
+	cv::Mat roi2 = cv::Mat(final, cv::Rect(stitchx, pos_stitchy, img2.cols, img2.rows));
+
 	img2.copyTo(roi2);
 	imshow("stitch", final);
 	
@@ -153,8 +161,9 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 	//search only in this window if specified
 	if(search_window.height != 0 && search_window.width != 0){
 		printf("wcoverage : %d, hcoverage: %d\n", search_window.width, search_window.height);
-		start_offsety = starty-search_window.height;
-		end_offsety = starty + 2*search_window.height;
+		start_offsety = -search_window.height;
+		end_offsety = search_window.height;
+		assert(end_offsety <= R_src.rows );
 		start_offsetx = L_src.cols-1;
 		end_offsetx = L_src.cols-search_window.width;
 	}else{
@@ -166,10 +175,10 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 	for(int offsety = start_offsety; offsety < end_offsety; offsety++){
 		for(int offsetx = start_offsetx; offsetx > end_offsetx; offsetx--){
 			
-			printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
-			stitch(L_src, R_src,offsetx, offsety);
-			cv::waitKey(40);
-			cv::waitKey(0);
+			//printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
+			//stitch(L_src, R_src,offsetx, offsety);
+			//cv::waitKey(40);
+			//cv::waitKey(0);
 			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,search_window);
 			//printf("corrval : %f\n", corrval);
 			assert(corrval <= 1);	assert(corrval >= -1);
@@ -218,6 +227,11 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 
 	int offsetx = offx;
 	int offsety = offy;
+	int neg_offy = 0;
+	if(offsety < 0){
+		neg_offy = offsety;
+		offsety = 0;
+	}	
 
 	double ref_val = 0, targ_val = 0;
 	double corr_val = 0;
@@ -226,17 +240,17 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 
 	//calculate mean of the window patch, the moving window is the target image
 	for(int j = 0; j < targ.cols-offsetx; j++){
-		for(int i = 0; i < targ.rows-offsety; i++){
+		for(int i = 0+std::abs(neg_offy); i < targ.rows-offsety; i++){
 
 
 			targ_nval += (int) targ.at<uchar>(i,j);
 		}
 	}
-	targ_nval = targ_nval / ((targ.cols-offsetx)*(targ.rows-offsety));
+	targ_nval = targ_nval / ((targ.cols-offsetx)*(targ.rows-offsety+neg_offy));
 
 	//mean for reference image, the image that stay stationary
 	for(int j = offsetx; j < ref.cols; j++){
-		for(int i = offsety; i < ref.rows; i++){
+		for(int i = offsety; i < ref.rows+neg_offy; i++){
 
 			ref_nval += (int) ref.at<uchar>(i,j);
 		}
@@ -245,12 +259,12 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 
 	//calculate Ecc with the given mean for each image
 	for(int j = offsetx; j < ref.cols; j++){
-		for(int i = offsety; i < ref.rows; i++){
+		for(int i = offsety; i < ref.rows+neg_offy; i++){
 
 			int ref_val = 0;
 			int targ_val = 0;
 			ref_val = (int) ref.at<uchar>(i,j) - ref_nval;
-			targ_val = (int) targ.at<uchar>(i-offsety, j-offsetx) - targ_nval;
+			targ_val = (int) targ.at<uchar>(i-offsety+std::abs(neg_offy), j-offsetx) - targ_nval;
 			double reftarg_val = ref_val*targ_val;
 			corr_val += reftarg_val;
 
@@ -424,11 +438,7 @@ int main(){
 	ImageRegistration imgreg = ImageRegistration();
 	//std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,0,0, cv::Size(0,0));
 	//cv::Mat corresult =imgreg.stitch(*ref,*target, result.first.first, result.first.second);
-	//std::ostringstream stream;
-	//stream << "rawdata\\result\\";
-	//stream << "nccstitch.jpg";
-	//cv::String filename = stream.str();
-	//cv::imwrite(filename, corresult);
+
 
 
 	//cv::imshow("median_depth", depth1);
@@ -436,6 +446,7 @@ int main(){
 	depthPlaneDetector detector(&depth1, 61, 30);
 	cv::Mat keypoint_window = detector.searchDeviationDx(depth1);
 	cv::imshow("keypoint window", keypoint_window);
+	cv::waitKey(40);
 	if(keypoint_window.empty()){
 		//can't find keypoint in reference image. Not going to stitch
 		//TODO: need to expand this so that it stitches even if no keypoint found if there is an
@@ -452,11 +463,20 @@ int main(){
 		cv::Mat result = detector.drawPolynomial(detector.displayDepthGraph(depth1, 0, 0));
 
 		cv::imshow("polynomial result", result);
-		//cv::imshow("corresult", corresult);
 		cv::imshow("original depthgraph", detector.displayDepthGraph(depth1, 0, 0));
+		cv::waitKey(40);
 		cv::waitKey(0);
+		std::ostringstream stream;
+		stream << "rawdata\\result\\";
+		stream << "colornccstitch.jpg";
+		cv::String filename = stream.str();
+		if(cv::imwrite(filename, corresult)){
+			printf("Image saved. ");
+		}else{
+			printf("Error saving Image. ");
+		}
 		timer = clock() - timer;
-		printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
+		printf("]Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
 		cv::waitKey(0);
 	}
 

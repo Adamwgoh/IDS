@@ -5,53 +5,10 @@ depthPlaneDetector::depthPlaneDetector(cv::Mat* input, int w_ksize, int h_ksize)
 {
 	printf("Initialized depthPlaneDetector\n");
 }
-//
-//int main(int argc, char* argv[]){
-//	clock_t timer;
-//	timer = clock();
-//	//target image is the one not moving
-//	cv::Mat img1 = cv::imread("rawdata\\test\\left_testframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-//	//good example of noise (11depthframe)
-//	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\5depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-//	//the reference image that is checked for a certain patch
-//	cv::Mat img2 = cv::imread("rawdata\\test\\right_testframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
-//
-//	cv::GaussianBlur(img1, img1, cv::Size(21,21), 0, 0);
-//	cv::GaussianBlur(img2, img2, cv::Size(21,21), 0,0);
-//	cv::medianBlur(depth1, depth1, 3);
-//	cv::Mat* target = &img2;
-//	cv::Mat* ref = &img1;
-//
-//	depthPlaneDetector planeDetect = depthPlaneDetector(&depth1, 40, 20);
-//	cv::imshow("original frame", depth1);
-//	cv::waitKey(30);
-//	cv::Mat deviation = planeDetect.searchDeviationDx(depth1);
-//	timer = clock() - timer;
-//	
-//	if(!deviation.empty()){	
-//		cv::imshow("deviation window", deviation);
-//	}else{
-//		printf("No deviation found!\n");
-//	}
-//
-//	cv::Mat depthgraph = planeDetect.displayDepthGraph(depth1, 0, 0);
-//	planeDetect.saveDepthFrame("depthgraph",&depthgraph,5);
-//
-//	cv::imshow("depthgraph", depthgraph);
-//	cv::waitKey(30);
-//	//cv::waitKey(0);
-//	printf("window begin at coord : (%d,%d)\n",planeDetect.x,planeDetect.y);
-//	printf("total runtime : %f\n", ((double) timer/(double) CLOCKS_PER_SEC));
-//	cv::waitKey(0);
-//
-//	return 0;
-//}
 
 cv::Size depthPlaneDetector::getWindowsize(){	return windowsize;	}
 cv::Mat depthPlaneDetector::getReferenceImage(){	return *image;	}
 void depthPlaneDetector::setWindowsize(cv::Size ksize){	windowsize = ksize;	}
-
-
 
 /**
  *	Calculates the standard deviation for the input image for a certain window
@@ -68,9 +25,6 @@ double depthPlaneDetector::calcStandardDeviation(cv::Mat* input, cv::Size ksize,
 	window.convertTo(window, CV_8UC1);
 	assert(window.channels() == 1);
 	
-	//display Image for test
-	//cv::imshow("region of interest", window);
-
 	//calculate mean in the window area
 	cv::Mat deviance = cv::Mat(window.rows, window.cols, CV_8UC1);
 	double mean = 0;
