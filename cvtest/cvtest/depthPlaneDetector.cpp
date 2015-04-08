@@ -106,17 +106,14 @@ double depthPlaneDetector::calcStandardDeviation(cv::Mat* input, cv::Size ksize,
  *	Search through the input image for a change in deviation. If there is, show the area where deviation is found
  **/
 cv::Mat depthPlaneDetector::searchDeviationDx(cv::Mat input){
-	cv::Mat result;
+	cv::Mat result = cv::Mat();
 	double deviation = 0;
 	double curr_deviation = 0;
 	assert(input.rows > windowsize.height && input.cols > windowsize.width);
-	int start_y = (input.rows/2)+(windowsize.height);
+	int start_y = (input.rows/2)+(windowsize.height);//put window in the middle for least noise
 	for(int start_x = 0; start_x < input.cols-windowsize.width; start_x += windowsize.width/2){
 			
 			curr_deviation = calcStandardDeviation(&input, windowsize,start_x,start_y);
-			//cv::waitKey(100);
-
-			printf("curr_deviation : %f, deviation : %f\n", curr_deviation, deviation);
 			if(deviation != 0 && (2*deviation < curr_deviation)){
 
 				//found change, return window
@@ -130,6 +127,7 @@ cv::Mat depthPlaneDetector::searchDeviationDx(cv::Mat input){
 			}
 	}//end x-loop
 	
+	//return empty result
 	return result;
 }
 
@@ -200,6 +198,8 @@ cv::Mat depthPlaneDetector::drawPolynomial(cv::Mat graph){
 	//puts value at a result Mat
 	for(int j = 0; j < srcgraph.cols-window.width; j++){
 		//Assign the window's least fit error to the center of window's pixel, generating a line
+		//printf("row : %d,s col : %d\n", getLeastSquare(win_intensity, j, window), j+(int) ((window.width-1)/2));
+		//printf("j : %d\n", j);
 		int rowval = getLeastSquare(win_intensity, j, window);
 		if(rowval > 255){
 			rowval = 255;
@@ -220,13 +220,12 @@ int depthPlaneDetector::getLeastSquare(cv::Mat src, int win_x, cv::Size window){
 	assert(win_x < src.cols-window.width);
 	assert(window.width % 2 == 1);
 	
-	int dx_atzero  =  (int) src.at<uchar>(0,win_x+(int) ((window.width-1)/2)) -
-		(int) src.at<uchar>(0,win_x+1+(int) ((window.width-1)/2)); 
 	int val_atzero = (int) src.at<uchar>(0,win_x+(int) ((window.width-1)/2));
 	int dx_atone = (int) src.at<uchar>(0,win_x+1+(int) ((window.width-1)/2));
 
 	//accumulate each ||Ii - (I0 + i(dx(0)))||^2, or the least square errors for each x
 	for(int i = win_x; i < win_x+window.width; i++){
+		int dx_atzero = src.at<uchar>(0, win_x) - val_atzero;
 		int x_val = val_atzero - (val_atzero + x*(dx_atzero));
 		x_val = (int) std::pow((double) x_val, 2);
 		leastsquare += x_val;

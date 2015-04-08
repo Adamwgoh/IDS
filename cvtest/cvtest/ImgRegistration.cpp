@@ -124,7 +124,6 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 	img1.copyTo(roi1);
 	cv::Mat roi2 = cv::Mat(final, cv::Rect(stitchx, stitchy, img2.cols, img2.rows));
 	img2.copyTo(roi2);
-	imshow("crop", roi2);
 	imshow("stitch", final);
 	
 	return final;
@@ -135,29 +134,44 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 *	that is, the value must be between 0 to 100
 *	Output is the highest cross-correlation value within the given window.
 **/
-std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L_src, cv::Mat R_src, double startx, double starty, cv::Size window){
+std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L_src, cv::Mat R_src, int startx=0, int starty=0, cv::Size window=cv::Size(0,0)){
+	
+	double corr = 0;
+	int finalx, finaly = 0;
+	int start_offsetx = L_src.cols-1;
+	int end_offsetx = 0;
+	int start_offsety = 0;
+	int end_offsety = L_src.rows;
+	assert(startx+window.width < L_src.cols && startx+window.width < R_src.cols);
+	assert(starty+window.height < L_src.rows && starty+window.height < R_src.rows);
 	std::vector<double> corr_list = std::vector<double>();
 	std::vector<std::pair<int,int>> coords = std::vector<std::pair<int,int>>();
 	std::pair<int,int> coord = std::pair<int,int>();
-
+	cv::Size search_window = window;
 	std::vector<std::pair<std::pair<int,int>,double>> result = std::vector<std::pair<std::pair<int,int>,double> >();
-	//std::vector<std::pair<std::pair<int,int>,double>> peaks = std::vector<std::pair<std::pair<int,int>,double> >();
-	double corr = 0;
-	int finalx, finaly = 0;
-	//calculate corr based on the percentage of coverage
-	printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
-
 	
-	for(int offsety = 0; offsety < L_src.rows; offsety++){
-		for(int offsetx = L_src.cols-1; offsetx > 0; offsetx--){
+	//search only in this window if specified
+	if(search_window.height != 0 && search_window.width != 0){
+		printf("wcoverage : %d, hcoverage: %d\n", search_window.width, search_window.height);
+		start_offsety = starty-search_window.height;
+		end_offsety = starty + 2*search_window.height;
+		start_offsetx = L_src.cols-1;
+		end_offsetx = L_src.cols-search_window.width;
+	}else{
+		printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
+	}
 
-			//cv::imshow("current correlation test", stitch(L_src, R_src, offsetx, offsety));
+
+	//calculate correlation
+	for(int offsety = start_offsety; offsety < end_offsety; offsety++){
+		for(int offsetx = start_offsetx; offsetx > end_offsetx; offsetx--){
+			
 			printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
-			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,cv::Size(0,0));
-			printf("corrval : %f\n", corrval);
-		
-			//cv::waitKey(30);
-			//cv::waitKey(0);
+			stitch(L_src, R_src,offsetx, offsety);
+			cv::waitKey(40);
+			cv::waitKey(0);
+			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,search_window);
+			//printf("corrval : %f\n", corrval);
 			assert(corrval <= 1);	assert(corrval >= -1);
 			coord = std::make_pair(offsetx,offsety);
 			result.push_back(std::make_pair(coord, corrval));
@@ -199,6 +213,8 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 	//make sure both images are of the same size and channels
 	assert(img1.channels() ==1 && img2.channels() == 1);
 	assert(img1.rows == img2.rows && img1.cols == img2.cols);
+	//assert(offx + window.width < img1.cols && offx + window.width < img1.cols);
+	//assert(offy + window.height< img2.rows && offy + window.height< img2.rows);
 
 	int offsetx = offx;
 	int offsety = offy;
@@ -245,20 +261,19 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 
 	double denom = 0;
 	denom = std::sqrt( sq_ref_variance*sq_targ_variance );
-	printf("corr_val %f, denom %f\n", corr_val, denom);
 
 	//adding a 0.0 as a work around to having -0.0 as a value for double)
 	if((0.0 + denom) == 0){
-		printf("denom is 0\n");
+		//printf("denom is 0\n");
 		return 0;//denom is 0. Is returning 0 correct?
 	}else if((0.0 + corr_val) == 0){
-		printf("corr_val is 0\n");
+		//printf("corr_val is 0\n");
 		return 0;
 	}
 	
 	assert(denom != 0 && corr_val != 0);
 	double Ecc = corr_val / denom;
-	printf("Ecc val : %f\n", Ecc);
+	//printf("Ecc val : %f\n", Ecc);
 	assert(Ecc <= 1 && Ecc >= -1);
 
 	return Ecc;
@@ -382,22 +397,32 @@ int main(){
 	clock_t timer;
 	timer = clock();
 	//target image is the one not moving
-	cv::Mat img1 = cv::imread("rawdata\\setthree_with_markers\\2cframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\10depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat img1 = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\3depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	//the reference image that is checked for a certain patch
-	cv::Mat img2 = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat img2 = cv::imread("rawdata\\setthree_with_markers\\4cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat depth2 = cv::imread("rawdata\\setthree_with_markers\\4depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	
+	//resample depth image
+	cv::Size downsampled_size = cv::Size(img1.cols/2, img1.rows/2);
 
-	cv::GaussianBlur(img1, img1, cv::Size(21,21), 0, 0);
-	cv::GaussianBlur(img2, img2, cv::Size(21,21), 0,0);
 	cv::medianBlur(depth1, depth1, 3);
+	cv::medianBlur(depth2, depth2, 3);
+	cv::resize(depth1, depth1, downsampled_size, CV_INTER_NN);
+	cv::resize(depth2, depth2, downsampled_size, CV_INTER_NN);
+
+	//downsample image to half the size
+	cv::pyrDown(img1, img1, cv::Size(img1.cols/2, img1.rows/2));
+	cv::pyrDown(img2, img2, cv::Size(img2.cols/2, img2.rows/2));
+
+	cv::GaussianBlur(img1, img1, cv::Size(11,11), 0, 0);
+	cv::GaussianBlur(img2, img2, cv::Size(11,11), 0,0);
 
 	cv::Mat* target = &img2;
 	cv::Mat* ref = &img1;
-	//cv::imshow("leftframe", img1);
-	//cv::imshow("rightframme", img2);
-
-	//ImageRegistration imgreg = ImageRegistration();
-	//std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,1.0,1.0, cv::Size(0,0));
+	
+	ImageRegistration imgreg = ImageRegistration();
+	//std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,0,0, cv::Size(0,0));
 	//cv::Mat corresult =imgreg.stitch(*ref,*target, result.first.first, result.first.second);
 	//std::ostringstream stream;
 	//stream << "rawdata\\result\\";
@@ -408,15 +433,33 @@ int main(){
 
 	//cv::imshow("median_depth", depth1);
 	//cv::waitKey(30);
-	depthPlaneDetector detector(&depth1, 41, 20);
-	cv::Mat result = detector.drawPolynomial(detector.displayDepthGraph(depth1, 0, 0));
+	depthPlaneDetector detector(&depth1, 61, 30);
+	cv::Mat keypoint_window = detector.searchDeviationDx(depth1);
+	cv::imshow("keypoint window", keypoint_window);
+	if(keypoint_window.empty()){
+		//can't find keypoint in reference image. Not going to stitch
+		//TODO: need to expand this so that it stitches even if no keypoint found if there is an
+		//existing keypoint already found
+		printf("no keypoint found! not stitching\n");
+	}else{
+	
+		//get window startx and y, only search for deviation in that area
+		cv::Size win_size = detector.getWindowsize();
+		int x = detector.x; int y = detector.y;
+		printf("window x: %d, window y : %d\n", x, y);
+		std::pair<std::pair<int,int>, double> corr_values = imgreg.Norm_CrossCorr(*ref,*target,x,y, win_size);
+		cv::Mat corresult = imgreg.stitch(*ref,*target, corr_values.first.first, corr_values.first.second);
+		cv::Mat result = detector.drawPolynomial(detector.displayDepthGraph(depth1, 0, 0));
 
-	cv::imshow("polynomial result", result);
-	cv::imshow("original depthgraph", detector.displayDepthGraph(depth1, 0, 0));
-	cv::waitKey(0);
-	timer = clock() - timer;
-	printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
-	cv::waitKey(0);
+		cv::imshow("polynomial result", result);
+		//cv::imshow("corresult", corresult);
+		cv::imshow("original depthgraph", detector.displayDepthGraph(depth1, 0, 0));
+		cv::waitKey(0);
+		timer = clock() - timer;
+		printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
+		cv::waitKey(0);
+	}
+
 
 	return 0;
 }

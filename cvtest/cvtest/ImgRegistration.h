@@ -7,6 +7,7 @@
 #include <fstream>
 #include <math.h>
 #include <time.h>
+
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/common/common_headers.h>
@@ -25,7 +26,7 @@ public :
 	double getCrossVal();
 	double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx, int offy, cv::Size window);
 	std::pair<int,int> getOffset();
-	std::pair<std::pair<int,int>,double> Norm_CrossCorr(cv::Mat L_src, cv::Mat R_src, double startx, double starty, cv::Size window);
+	std::pair<std::pair<int,int>,double> Norm_CrossCorr(cv::Mat L_src, cv::Mat R_src, int startx, int starty, cv::Size window);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr RANSAC(pcl::PointCloud<pcl::PointXYZ>::Ptr inputcloud);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cvtMat2Cloud(cv::Mat* src);
 	cv::Mat cvCloud2Mat(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);

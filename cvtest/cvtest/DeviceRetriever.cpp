@@ -162,17 +162,6 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 	stream << "depthframe.jpg";
 	cv::String dframe = stream.str();
 	cv::imwrite(dframe, depthframe);
-
-	//cloud.resize(data.verticesFloatingPoint.size());
-	//cloud.points.resize(data.vertices.size());
-	//// TODO: is there any exceptions to catch here?
-	//for(int i = 0; i < data.verticesFloatingPoint.size(); i++){
-	//	
-	//			cloud.points[i].x = (float) data.verticesFloatingPoint[i].x;
-	//			cloud.points[i].y = (float) data.verticesFloatingPoint[i].y;
-	//			cloud.points[i].z = (float) data.verticesFloatingPoint[i].z;
-	//			//printf("x : %f, y : %f, z : %f \n", cloud.points[i].x,cloud.points[i].y, cloud.points[i].z);
-	//}	
 	//UV* uv_map;
 	//FPVertex* vertFlt_points;
 
