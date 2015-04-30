@@ -1,14 +1,22 @@
 #include "ImgRegistration.h"
-#include "depthPlaneDetector.h"
 
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/visualization/pcl_visualizer.h>
+//constructor
+ImageRegistration::ImageRegistration(){
+	//default window size is (61,30);
+	planedetector = depthPlaneDetector(61,30);
+}
+
+ImageRegistration::ImageRegistration(cv::Size winsize){
+	planedetector = depthPlaneDetector(winsize.width, winsize.height);
+}
+
+
 
 /**
  * Uses DFT with correlation theorem of Fourier in attempt to find for correlation score
  **/
 void ImageRegistration::multipeakstitch(cv::Mat image1, cv::Mat image2){
-		cv::Mat ref,target;
+	cv::Mat ref,target;
 	image1.copyTo(ref);
 	image2.copyTo(target);
 	cv::Mat* refimg = &ref;
@@ -34,7 +42,6 @@ void ImageRegistration::multipeakstitch(cv::Mat image1, cv::Mat image2){
 				xs.push_back(i); ys.push_back(j);
 				corrs.push_back(result.at<double>(j,i));
 				x = i; y = j;
-				//printf("val at (j,i) = %f\n", result.at<double>(j,i));
 				corr = result.at<double>(j,i);
 
 			}
@@ -120,19 +127,41 @@ std::vector<cv::Mat> ImageRegistration::dft(cv::Mat* img){
 cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int stitchy){
 	int neg_stitchy = stitchy;
 	int pos_stitchy = stitchy;
-
+	int roiy = 0;
 	if(stitchy < 0){
 		neg_stitchy = std::abs(stitchy);
+		roiy = neg_stitchy;
 		pos_stitchy = 0;
 	}
 
-	cv::Mat final = cv::Mat(cv::Size(img1.cols + stitchx, img1.rows + 2*neg_stitchy),CV_8UC1);
-	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, neg_stitchy,  img1.cols, img1.rows));
+	cv::Mat final = cv::Mat(cv::Size(img1.cols + img2.cols - (img2.cols - stitchx), img1.rows + neg_stitchy),CV_8UC1);
+	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, roiy,  img1.cols, img1.rows));
+	cv::Mat roi2 = cv::Mat();
 	img1.copyTo(roi1);
-	cv::Mat roi2 = cv::Mat(final, cv::Rect(stitchx, pos_stitchy, img2.cols, img2.rows));
+
+	//if one image is larget than the other, then assumed as a stitched image stitching with another frame,
+	//hence offset is calculated from the right and not left.
+	if(img1.cols > img2.cols && img1.rows > img2.rows){
+		//check if vertical offset is upwards or downwards
+		int bottom_val = img1.at<uchar>(img1.rows-1,img1.cols-1);
+		int top_val = img1.at<uchar>(0,img1.cols-1);
+		int prev_offy = 0;
+
+		if(bottom_val != 205 && top_val == 205){
+			//blank spaces is below the image, does not affect stitching
+			prev_offy = pos_stitchy;
+		}else if(bottom_val == 205 && top_val != 205){
+			//blank spaces is above the image, affects stitching. Needs to be take away
+			prev_offy = pos_stitchy +  (img1.rows - img2.rows);
+		}
+
+		roi2 = cv::Mat(final, cv::Rect(img1.cols - (img2.cols - stitchx),
+			prev_offy, img2.cols, img2.rows));
+	}else{
+		roi2 = cv::Mat(final, cv::Rect(stitchx, pos_stitchy, img2.cols, img2.rows));
+	}
 
 	img2.copyTo(roi2);
-	imshow("stitch", final);
 	
 	return final;
 }
@@ -164,8 +193,10 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 		start_offsety = -search_window.height;
 		end_offsety = search_window.height;
 		assert(end_offsety <= R_src.rows );
-		start_offsetx = L_src.cols-1;
-		end_offsetx = L_src.cols-search_window.width;
+		//start_offsetx = L_src.cols-1;
+		//end_offsetx = L_src.cols-search_window.width;
+		start_offsetx = startx + search_window.width;
+		end_offsetx = startx;
 	}else{
 		printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
 	}
@@ -354,9 +385,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr ImageRegistration::cvtMat2Cloud(cv::Mat* src
 				}
 			}
 		}		
-	}else if(img.channels() == 3){
-		//TODO: conversion for RGB. For function's modularity
-		assert(img.channels() == 1);
 	}
 
 	return cloud;
@@ -379,9 +407,52 @@ cv::Mat ImageRegistration::cvCloud2Mat(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
 	return result;
 }
 
-std::pair<int,int>	ImageRegistration::getOffset(){
-	return offset_coord;
+//finds the translational coordinate between two images using normalized cross correlation.
+//Returns coordinate in the first image of VGA size
+std::pair<int,int>	ImageRegistration::getColorOffset(cv::Mat img1, cv::Mat img2, int start_winx, int start_winy, cv::Size window_size){
+	assert(img2.cols == VGA_WIDTH && img2.rows == VGA_HEIGHT);
+	assert(img2.rows == VGA_HEIGHT && img1.cols == VGA_WIDTH);
+	cv::Mat L_src, R_src;
+	img1.copyTo(L_src);
+	img2.copyTo(R_src);
+
+	//downsample both images to half its sizes
+	cv::pyrDown(L_src, L_src, cv::Size(L_src.cols/2, L_src.rows/2));
+	cv::pyrDown(R_src, R_src, cv::Size(R_src.cols/2, R_src.rows/2));
+	
+	//blurring to smoothen any noises available
+	if(L_src.cols > VGA_WIDTH && L_src.rows > VGA_HEIGHT){
+	
+		cv::GaussianBlur(L_src, L_src, cv::Size(17, 17), 0, 0);
+	}else{
+		cv::GaussianBlur(L_src, L_src, cv::Size(11, 11), 0, 0);
+	}
+
+	cv::GaussianBlur(R_src, R_src, cv::Size(11,11), 0,0);
+	std::pair<int,int> cvt_offset = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),start_winx, start_winy);
+	std::pair<std::pair<int, int>, double> corr_values = Norm_CrossCorr(L_src, R_src, cvt_offset.first, cvt_offset.second, window_size);
+	std::pair<int,int> highest_offset = corr_values.first;//highest corr value offset
+
+	//convert to original resolution offset
+	std::pair<int, int> result = convertOffset(cv::Size(L_src.cols, R_src.rows), cv::Size(VGA_WIDTH, VGA_HEIGHT), highest_offset.first, highest_offset.second);
+	
+	printf("before convert coord : (%d,%d), after convert to VGA coord : (%d,%d)\n", highest_offset.first, highest_offset.second, result.first, result.second);
+	return result;
 }
+
+//converts the offset coordinates in the first image to the offset coordinates in the second offset
+std::pair<int, int>	ImageRegistration::convertOffset(cv::Size src, cv::Size targ, int offsetx, int offsety){
+	//find scale factor between two sizes
+	double width_ratio = (double) targ.width/ (double) src.width;
+	double height_ratio = (double) targ.height/(double) src.height;
+
+	int new_offx = std::floor(offsetx*width_ratio);
+	int new_offy = std::floor(offsety*height_ratio);
+	std::pair<int,int> new_off = std::pair<int, int>(new_offx, new_offy);
+
+	return new_off;
+}
+
 
 /**
  * Rearranges the quadrants where the first and third are swap, as well as the second and fourth swapped
@@ -405,81 +476,4 @@ void ImageRegistration::reMap2(cv::Mat& src, cv::Mat& dst){
 	q1.copyTo(tmp);
 	q2.copyTo(q1);
 	tmp.copyTo(q2);
-}
-
-int main(){
-	clock_t timer;
-	timer = clock();
-	//target image is the one not moving
-	cv::Mat img1 = cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat depth1 = cv::imread("rawdata\\setthree_with_markers\\3depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	//the reference image that is checked for a certain patch
-	cv::Mat img2 = cv::imread("rawdata\\setthree_with_markers\\4cframe.jpg",CV_LOAD_IMAGE_GRAYSCALE);
-	cv::Mat depth2 = cv::imread("rawdata\\setthree_with_markers\\4depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	
-	//resample depth image
-	cv::Size downsampled_size = cv::Size(img1.cols/2, img1.rows/2);
-
-	cv::medianBlur(depth1, depth1, 3);
-	cv::medianBlur(depth2, depth2, 3);
-	cv::resize(depth1, depth1, downsampled_size, CV_INTER_NN);
-	cv::resize(depth2, depth2, downsampled_size, CV_INTER_NN);
-
-	//downsample image to half the size
-	cv::pyrDown(img1, img1, cv::Size(img1.cols/2, img1.rows/2));
-	cv::pyrDown(img2, img2, cv::Size(img2.cols/2, img2.rows/2));
-
-	cv::GaussianBlur(img1, img1, cv::Size(11,11), 0, 0);
-	cv::GaussianBlur(img2, img2, cv::Size(11,11), 0,0);
-
-	cv::Mat* target = &img2;
-	cv::Mat* ref = &img1;
-	
-	ImageRegistration imgreg = ImageRegistration();
-	//std::pair<std::pair<int,int>, double> result = imgreg.Norm_CrossCorr(*ref,*target,0,0, cv::Size(0,0));
-	//cv::Mat corresult =imgreg.stitch(*ref,*target, result.first.first, result.first.second);
-
-
-
-	//cv::imshow("median_depth", depth1);
-	//cv::waitKey(30);
-	depthPlaneDetector detector(&depth1, 61, 30);
-	cv::Mat keypoint_window = detector.searchDeviationDx(depth1);
-	cv::imshow("keypoint window", keypoint_window);
-	cv::waitKey(40);
-	if(keypoint_window.empty()){
-		//can't find keypoint in reference image. Not going to stitch
-		//TODO: need to expand this so that it stitches even if no keypoint found if there is an
-		//existing keypoint already found
-		printf("no keypoint found! not stitching\n");
-	}else{
-	
-		//get window startx and y, only search for deviation in that area
-		cv::Size win_size = detector.getWindowsize();
-		int x = detector.x; int y = detector.y;
-		printf("window x: %d, window y : %d\n", x, y);
-		std::pair<std::pair<int,int>, double> corr_values = imgreg.Norm_CrossCorr(*ref,*target,x,y, win_size);
-		cv::Mat corresult = imgreg.stitch(*ref,*target, corr_values.first.first, corr_values.first.second);
-		cv::Mat result = detector.drawPolynomial(detector.displayDepthGraph(depth1, 0, 0));
-
-		cv::imshow("polynomial result", result);
-		cv::imshow("original depthgraph", detector.displayDepthGraph(depth1, 0, 0));
-		cv::waitKey(40);
-		cv::waitKey(0);
-		std::ostringstream stream;
-		stream << "rawdata\\result\\";
-		stream << "colornccstitch.jpg";
-		cv::String filename = stream.str();
-		if(cv::imwrite(filename, corresult)){
-			printf("Image saved. ");
-		}else{
-			printf("Error saving Image. ");
-		}
-		timer = clock() - timer;
-		printf("]Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
-		cv::waitKey(0);
-	}
-
-
-	return 0;
 }

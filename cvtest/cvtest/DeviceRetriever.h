@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <exception>
 #include <iostream>
@@ -30,9 +31,9 @@
 #include <pcl/point_types.h>
 #include <pcl/console/parse.h>
 
-#include "planefitting.h"
 
 using namespace DepthSense;
+
 
 class DeviceRetriever{
 public:

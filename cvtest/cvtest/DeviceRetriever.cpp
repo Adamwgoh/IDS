@@ -62,6 +62,9 @@ bool DeviceRetriever::runNodes(){
 		this->d_Context.getDevices().at(0).nodeRemovedEvent().connect(DeviceRetriever::onNodeDisconnected);
 	}
 	this->d_Context.startNodes();
+	
+	printf("Initialization completed. Press any key to continue\n");
+	cv::waitKey(0);
 	this->d_Context.run();
 	
 	return true;
@@ -82,21 +85,25 @@ void DeviceRetriever::onNewColorSample(ColorNode node, ColorNode::NewSampleRecei
 	int32_t colorframe_height = VGA_HEIGHT;
 	int32_t total_indices = colorframe_width*colorframe_height;
 
-	cv::Mat* d_colorframe;
+	cv::Mat* d_colorframe = new cv::Mat();
 	cv::Mat* d_yuy2frame;
 	//uint8_t colorData[3*VGA_WIDTH*VGA_HEIGHT];
 	//I've made this variable static, assuming that the sample rate for both depth and color is the same
 	//	if it isn't, think of an alternative
 
 	//fills Mat with colorMap's data
+	printf("capturing color frame\n");
 	d_yuy2frame = new cv::Mat(cv::Size(colorframe_width, colorframe_height), CV_8UC3, (void*)(const uint8_t*)data.colorMap);
 	getRGBFrame(d_yuy2frame, *d_colorframe, colorframe_width, colorframe_height);
+	printf("captured color frame. Saving color frame\n");
 	std::ostringstream ss;
 	ss << "rawdata\\";
 	ss << ccount;
 	ss << "cframe.jpg";
 	cv::String url = ss.str();
 	cv::imwrite(url,*d_colorframe);
+	printf("saved color frame\n");
+
 	ccount++;
 	//converts raw data from color frame into RGB Mat
 	
@@ -585,13 +592,4 @@ void getRGBFrame(cv::Mat* src, cv::Mat& out, int frame_width, int frame_height){
 float packRGB(uint8_t* rgb){
 	uint32_t rgb32 = ((uint32_t)rgb[0] << 16 | (uint32_t) rgb[1] << 8 | (uint32_t)rgb[2]);
 	return *reinterpret_cast<float*>(&rgb32);
-}
-
-int main(int args, char* argc[]){
-
-	DeviceRetriever* retrieve = new DeviceRetriever();
-
-	retrieve->runNodes();
-
-	return 0;
 }

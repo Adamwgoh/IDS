@@ -1,16 +1,5 @@
+#pragma once
 #include "stdafx.h"
-#include <cv.h>
-#include <highgui.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cmath>
-#include <fstream>
-#include <math.h>
-#include <time.h>
-
-#include <utility>
-#include <iostream>
 
 class depthPlaneDetector{
 	//public functions
@@ -18,6 +7,7 @@ class depthPlaneDetector{
 		//constructor
 		depthPlaneDetector();
 		depthPlaneDetector(cv::Mat* input, int w_ksize, int h_ksize);
+		depthPlaneDetector(int w_ksize, int h_ksize);
 
 		double calcStandardDeviation(cv::Mat* input, cv::Size ksize, int start, int starty);
 		cv::Size getWindowsize();

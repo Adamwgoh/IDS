@@ -1,9 +1,29 @@
 #include "depthPlaneDetector.h"
+#include "stdafx.h"
+
+#define VGA_WIDTH = 640;
+#define VGA_HEIGHT = 480;
+#define QQVGA_WIDTH = 160;
+#define QQVGA_HEIGHT = 120;
+
+
+//empty constructor
+depthPlaneDetector::depthPlaneDetector(){
+
+}
 
 depthPlaneDetector::depthPlaneDetector(cv::Mat* input, int w_ksize, int h_ksize)
 : image(input), windowsize(cv::Size(w_ksize,h_ksize) )
 {
 	printf("Initialized depthPlaneDetector\n");
+	printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
+}
+
+depthPlaneDetector::depthPlaneDetector(int w_ksize, int h_ksize)
+	: image(&cv::Mat()), windowsize(cv::Size(w_ksize,h_ksize) )
+{
+	printf("Initialized depthPlaneDetector.\n");
+	printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
 }
 
 cv::Size depthPlaneDetector::getWindowsize(){	return windowsize;	}
@@ -26,7 +46,6 @@ double depthPlaneDetector::calcStandardDeviation(cv::Mat* input, cv::Size ksize,
 	assert(window.channels() == 1);
 	
 	//calculate mean in the window area
-	cv::Mat deviance = cv::Mat(window.rows, window.cols, CV_8UC1);
 	double mean = 0;
 	double sum_squared_diff = 0;
 	double std_deviation = 0;
@@ -65,7 +84,10 @@ cv::Mat depthPlaneDetector::searchDeviationDx(cv::Mat input){
 	double curr_deviation = 0;
 	assert(input.rows > windowsize.height && input.cols > windowsize.width);
 	int start_y = (input.rows/2)+(windowsize.height);//put window in the middle for least noise
-	for(int start_x = 0; start_x < input.cols-windowsize.width; start_x += windowsize.width/2){
+	//calculate the first deviation, this is to make sure any changes at the start of the window can be detected
+	curr_deviation = calcStandardDeviation(&input, windowsize, 0, start_y);
+
+	for(int start_x = 1; start_x < input.cols-windowsize.width; start_x += windowsize.width/2){
 			
 			curr_deviation = calcStandardDeviation(&input, windowsize,start_x,start_y);
 			if(deviation != 0 && (2*deviation < curr_deviation)){

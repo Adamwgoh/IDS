@@ -9,7 +9,17 @@
 
 #include <stdio.h>
 #include <tchar.h>
+
+
 #include <cv.h>
+#include <DepthSense.hxx>
+#include <highgui.h>
+#include <sstream>
+#include <cmath>
+#include <iostream>
+#include <fstream>
+#include <math.h>
+#include <time.h>
 
-
-// TODO: reference additional headers your program requires here
+#include <utility>
+#include <iostream>
