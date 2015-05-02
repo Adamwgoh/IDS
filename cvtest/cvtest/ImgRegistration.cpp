@@ -133,8 +133,13 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 		roiy = neg_stitchy;
 		pos_stitchy = 0;
 	}
-
-	cv::Mat final = cv::Mat(cv::Size(img1.cols + img2.cols - (img2.cols - stitchx), img1.rows + neg_stitchy),CV_8UC1);
+	cv::Mat final = cv::Mat();
+	if(stitchx < img2.cols){
+		final = cv::Mat(cv::Size(img1.cols + img2.cols- (img2.cols - stitchx), img1.rows + neg_stitchy),img1.type());
+	}else{
+		final = cv::Mat(cv::Size(img1.cols + img2.cols - (img1.cols - stitchx), img1.rows + neg_stitchy),img1.type());
+	}
+	//cv::Mat final = cv::Mat(cv::Size(img1.cols + img2.cols - (img2.cols - stitchx), img1.rows + neg_stitchy),img1.type());
 	cv::Mat roi1 = cv::Mat(final, cv::Rect(0, roiy,  img1.cols, img1.rows));
 	cv::Mat roi2 = cv::Mat();
 	img1.copyTo(roi1);
@@ -162,7 +167,10 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 	}
 
 	img2.copyTo(roi2);
-	
+	cv::imshow("final", final);
+	cv::waitKey(40);
+	cv::waitKey(0);
+	cv::destroyAllWindows();
 	return final;
 }
 
@@ -172,7 +180,7 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 *	Output is the highest cross-correlation value within the given window.
 **/
 std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L_src, cv::Mat R_src, int startx=0, int starty=0, cv::Size window=cv::Size(0,0)){
-	
+
 	double corr = 0;
 	int finalx, finaly = 0;
 	int start_offsetx = L_src.cols-1;
@@ -201,16 +209,82 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 		printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
 	}
 
+	//calculate correlation
+	for(int offsety = start_offsety; offsety < end_offsety; offsety++){
+		for(int offsetx = start_offsetx; offsetx > end_offsetx; offsetx--){
+			
+			printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
+			cv::Mat stitchroi = stitch(L_src, R_src,offsetx, offsety);
+			cv::imshow("stitchroi", stitchroi);
+			cv::waitKey(40);
+			//cv::waitKey(0);
+			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,search_window);
+			//printf("corrval : %f\n", corrval);
+			assert(corrval <= 1);	assert(corrval >= -1);
+			coord = std::make_pair(offsetx,offsety);
+			result.push_back(std::make_pair(coord, corrval));
+		}
+	}
+
+	//look for the highest peak and return it
+	for(int i = 0; i < result.size(); i++){
+		if(corr < result[i].second){
+			finalx = result[i].first.first;
+			finaly = result[i].first.second;
+			corr = result[i].second;
+		}
+	}
+	printf(" biggest corr : %f, coord (%d,%d)\n", corr, finalx, finaly);
+	
+	return std::make_pair(std::make_pair(finalx,finaly),corr);
+}
+
+
+/**
+*	Calculates normalized cross-correlation between two image with the given window coverage in percentage,
+*	that is, the value must be between 0 to 100
+*	Output is the highest cross-correlation value within the given window.
+**/
+std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr2(cv::Mat L_src, cv::Mat R_src, cv::Rect left_window, cv::Rect right_window){
+	
+	double corr = 0;
+	int finalx = 0;int finaly = 0;
+	int start_offsetx= L_src.cols;
+	int end_offsetx = 0;
+	int start_offsety = 0;
+	int end_offsety = L_src.rows;
+	std::vector<double> corr_list = std::vector<double>();
+	std::vector<std::pair<int,int>> coords = std::vector<std::pair<int,int>>();
+	std::pair<int,int> coord = std::pair<int,int>();
+	//cv::Size search_window = window;
+	std::vector<std::pair<std::pair<int,int>,double>> result = std::vector<std::pair<std::pair<int,int>,double> >();
+
+	//search only in this window if specified
+	if(left_window.height != 0 && right_window.width != 0 && right_window.width != 0 && right_window.height != 0){
+		printf("wcoverage : %d, hcoverage: %d\n", left_window.width, right_window.height);
+		start_offsety = -left_window.height;
+		end_offsety = left_window.height;
+		assert(end_offsety <= R_src.rows );
+		//start_offsetx = L_src.cols-1;
+		//end_offsetx = L_src.cols-search_window.width;
+		start_offsetx = left_window.x + left_window.width - right_window.x;
+		end_offsetx = left_window.x - right_window.x;
+	}else{
+		printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
+	}
+
+	cv::Mat right_roi = cv::Mat(R_src, right_window);
 
 	//calculate correlation
 	for(int offsety = start_offsety; offsety < end_offsety; offsety++){
 		for(int offsetx = start_offsetx; offsetx > end_offsetx; offsetx--){
 			
 			//printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
-			//stitch(L_src, R_src,offsetx, offsety);
+			//cv::Mat offset_roi = stitch(L_src, R_src,offsetx, offsety);
+			//cv::imshow("offset_roi", offset_roi);
 			//cv::waitKey(40);
 			//cv::waitKey(0);
-			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,search_window);
+			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,cv::Size(left_window.width,left_window.height));
 			//printf("corrval : %f\n", corrval);
 			assert(corrval <= 1);	assert(corrval >= -1);
 			coord = std::make_pair(offsetx,offsety);
@@ -246,16 +320,19 @@ double ImageRegistration::getCrossVal(){
 double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, int offy=0, cv::Size window=cv::Size(0,0)){
 	//reference image and target image. Target is the moving window and reference is the stationary
 	cv::Mat ref, targ;
-	img1.copyTo(ref);
-	img2.copyTo(targ);
-	ref.convertTo(ref, CV_8UC1);
-	targ.convertTo(targ, CV_8UC1);
+	img1.convertTo(ref, CV_8UC1);
+	img2.convertTo(targ, CV_8UC1);
+	
+	cv::cvtColor(img2, targ, cv::COLOR_BGR2GRAY);
+	cv::cvtColor(img1, ref, cv::COLOR_BGR2GRAY);
+
 	//make sure both images are of the same size and channels
-	assert(img1.channels() ==1 && img2.channels() == 1);
-	assert(img1.rows == img2.rows && img1.cols == img2.cols);
+	
+	assert(ref.channels() ==1 && targ.channels() == 1);
+	assert(ref.rows == targ.rows && ref.cols == targ.cols);
 	//assert(offx + window.width < img1.cols && offx + window.width < img1.cols);
 	//assert(offy + window.height< img2.rows && offy + window.height< img2.rows);
-
+	
 	int offsetx = offx;
 	int offsety = offy;
 	int neg_offy = 0;
@@ -323,6 +400,8 @@ double ImageRegistration::calcCrossVal(cv::Mat img1, cv::Mat img2, int offx=0, i
 
 	return Ecc;
 }
+
+
 
 	/**
 	 * RANSAC Procedures
@@ -409,13 +488,14 @@ cv::Mat ImageRegistration::cvCloud2Mat(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
 
 //finds the translational coordinate between two images using normalized cross correlation.
 //Returns coordinate in the first image of VGA size
-std::pair<int,int>	ImageRegistration::getColorOffset(cv::Mat img1, cv::Mat img2, int start_winx, int start_winy, cv::Size window_size){
+std::pair<int,int>	ImageRegistration::getColorOffset(cv::Mat img1, cv::Mat img2,int leftstart_winx, int leftstart_winy, int rightstart_winx,int rightstart_winy, cv::Size window_size){
 	assert(img2.cols == VGA_WIDTH && img2.rows == VGA_HEIGHT);
-	assert(img2.rows == VGA_HEIGHT && img1.cols == VGA_WIDTH);
+	assert(img2.rows == VGA_HEIGHT && img2.cols == VGA_WIDTH);
 	cv::Mat L_src, R_src;
 	img1.copyTo(L_src);
 	img2.copyTo(R_src);
-
+	L_src.convertTo(L_src, CV_8UC1);
+	R_src.convertTo(R_src, CV_8UC1);
 	//downsample both images to half its sizes
 	cv::pyrDown(L_src, L_src, cv::Size(L_src.cols/2, L_src.rows/2));
 	cv::pyrDown(R_src, R_src, cv::Size(R_src.cols/2, R_src.rows/2));
@@ -427,10 +507,10 @@ std::pair<int,int>	ImageRegistration::getColorOffset(cv::Mat img1, cv::Mat img2,
 	}else{
 		cv::GaussianBlur(L_src, L_src, cv::Size(11, 11), 0, 0);
 	}
-
 	cv::GaussianBlur(R_src, R_src, cv::Size(11,11), 0,0);
-	std::pair<int,int> cvt_offset = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),start_winx, start_winy);
-	std::pair<std::pair<int, int>, double> corr_values = Norm_CrossCorr(L_src, R_src, cvt_offset.first, cvt_offset.second, window_size);
+
+	std::pair<int,int> cvt_left_offset = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),leftstart_winx, leftstart_winy);
+	std::pair<std::pair<int, int>, double> corr_values = Norm_CrossCorr(L_src, R_src, cvt_left_offset.first, cvt_left_offset.second, window_size);
 	std::pair<int,int> highest_offset = corr_values.first;//highest corr value offset
 
 	//convert to original resolution offset
@@ -438,6 +518,202 @@ std::pair<int,int>	ImageRegistration::getColorOffset(cv::Mat img1, cv::Mat img2,
 	
 	printf("before convert coord : (%d,%d), after convert to VGA coord : (%d,%d)\n", highest_offset.first, highest_offset.second, result.first, result.second);
 	return result;
+}
+
+//finds the translational coordinate between two images using normalized cross correlation.
+//Returns coordinate in the first image of VGA size
+std::pair<int,int>	ImageRegistration::getColorOffset2(cv::Mat img1, cv::Mat img2,cv::Rect left_frame, cv::Rect right_frame){
+	assert(img2.cols == VGA_WIDTH && img2.rows == VGA_HEIGHT);
+	assert(img2.rows == VGA_HEIGHT && img1.cols == VGA_WIDTH);
+	cv::Mat L_src, R_src;
+	img1.copyTo(L_src);
+	img2.copyTo(R_src);
+	L_src.convertTo(L_src, CV_8UC1);
+	R_src.convertTo(R_src, CV_8UC1);
+	//downsample both images to half its sizes
+	cv::pyrDown(L_src, L_src, cv::Size(L_src.cols/2, L_src.rows/2));
+	cv::pyrDown(R_src, R_src, cv::Size(R_src.cols/2, R_src.rows/2));
+	
+	//blurring to smoothen any noises available
+	if(L_src.cols > VGA_WIDTH && L_src.rows > VGA_HEIGHT){
+	
+		cv::GaussianBlur(L_src, L_src, cv::Size(17, 17), 0, 0);
+	}else{
+		cv::GaussianBlur(L_src, L_src, cv::Size(11, 11), 0, 0);
+	}
+	cv::GaussianBlur(R_src, R_src, cv::Size(11,11), 0,0);
+	std::pair<int,int> left_VGAcoords = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),left_frame.x, left_frame.y);
+	std::pair<int,int> right_VGAcoords = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2,VGA_HEIGHT/2),right_frame.x,right_frame.y);
+	std::pair<int,int> left_VGASize = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),left_frame.width, left_frame.height);
+	std::pair<int,int> right_VGASize = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),right_frame.width, right_frame.height);
+	
+	cv::Rect left_window = cv::Rect(left_VGAcoords.first, left_VGAcoords.second, left_VGASize.first, left_VGASize.second);
+	cv::Rect right_window = cv::Rect(right_VGAcoords.first, right_VGAcoords.second, right_VGASize.first, right_VGASize.second);
+	std::pair<std::pair<int,int>, double> corr_values = Norm_CrossCorr2(L_src, R_src, left_window, right_window);
+
+	//std::pair<int,int> cvt_left_offset = convertOffset(cv::Size(VGA_WIDTH,VGA_HEIGHT), cv::Size(VGA_WIDTH/2, VGA_HEIGHT/2),leftstart_winx, leftstart_winy);
+	std::pair<int,int> highest_offset = corr_values.first;//highest corr value offset
+
+	//convert to original resolution offset
+	std::pair<int, int> result = convertOffset(cv::Size(L_src.cols, R_src.rows), cv::Size(VGA_WIDTH, VGA_HEIGHT), highest_offset.first, highest_offset.second);
+	
+	printf("before convert coord : (%d,%d), after convert to VGA coord : (%d,%d)\n", highest_offset.first, highest_offset.second, result.first, result.second);
+	return result;
+}
+
+//given a window size and starting coordinate, calculate the average depth value in the window
+double ImageRegistration::getWindowDepthValue(cv::Mat depth_src, cv::Size windowsize, int startx, int starty){
+	double average_val = 0;
+	cv::Mat roi(depth_src, cv::Rect(startx, starty, windowsize.width, windowsize.height));
+
+	//calculate the average val in it
+	for(int row = 0; row < roi.rows; row++){
+		for(int col = 0; col < roi.cols; col++){
+			double val = roi.at<uchar>(row,col);
+			average_val += val;
+		}
+	}
+
+	average_val /= (roi.rows*roi.cols);
+
+	return average_val;
+}
+
+double ImageRegistration::compareColours(cv::Vec3b L_lastcolour,cv::Vec3b R_firstcolour){
+	double diff = 0;
+	diff = cv::norm(L_lastcolour - R_firstcolour);
+
+	return diff;
+}
+
+double ImageRegistration::getWindowDepthValue(cv::Mat src_roi){
+	double average_val = 0;
+
+	//calculate average val in that roi
+	for(int row = 0; row < src_roi.rows; row++){
+		for(int col = 0; col < src_roi.cols; col++){
+			double val = src_roi.at<uchar>(row,col);
+			average_val += val;
+		}
+	}
+
+	average_val /= (src_roi.rows*src_roi.cols);
+
+	return average_val;
+}
+
+//given the found depth deviations and colors found, decide what are the window area for stitching
+std::pair<cv::Rect, cv::Rect> ImageRegistration::findWindowOfInterest(Frame prev_frame, Frame curr_frame){
+	std::pair<cv::Rect, cv::Rect> windows;
+	cv::Mat left_cimg, left_dimg, right_cimg, right_dimg;
+	std::vector<cv::Vec3b> prev_colours, curr_colours;
+	std::vector<cv::Rect> prev_cwinx, curr_cwinx, prev_dwinx, curr_dwinx;
+	double colourdiff_thresh = 50;
+	int prev_width, curr_width;
+
+	//assign data from input to local variables
+	prev_colours = prev_frame.getColours();curr_colours = curr_frame.getColours();
+	left_cimg = prev_frame.getColourImage(); right_cimg = curr_frame.getColourImage();
+	left_dimg = prev_frame.getDepthImage(); right_dimg = curr_frame.getDepthImage();
+	prev_cwinx = prev_frame.getColorDeviations(); prev_dwinx = prev_frame.getDepthDeviations();
+	curr_cwinx = curr_frame.getColorDeviations(); curr_dwinx = curr_frame.getDepthDeviations();
+	prev_width = prev_frame.getWindowWidth(); curr_width = curr_frame.getWindowWidth();
+
+	/***
+	 * As deviation found are from left to right of image
+	 * , first check on the last deviation of the left image
+	 * and the first deviation of the right image, and if the image color matches.
+	 * If the color matches, the probable stitch is between the right side of Limage and 
+	 * left side of Rimage.
+	 ***/
+	if(prev_dwinx.size() != 0 && curr_dwinx.size() == 0){
+
+		//there is a change in deviation in the first frame but not on the second frame
+		for(int prev_dev = prev_dwinx.size(); prev_dev > 0; prev_dev--){
+			//cut the window into half, and get its deviation value
+			cv::Rect prev_rect = prev_dwinx.at(prev_dev);
+			cv::Mat left_prevroi = cv::Mat(left_dimg, cv::Rect(prev_rect.x, prev_rect.y, prev_rect.width/2, prev_rect.height));
+			cv::Mat right_prevroi = cv::Mat(left_dimg, cv::Rect(prev_rect.width/2, prev_rect.y, (prev_rect.width/2)-1, prev_rect.height));
+
+			//get the right frame's average depth value at the left of the frame
+			cv::Rect curr_rect = cv::Rect(prev_rect);//doesn't matter where, there's no huge std deviation anyway
+			cv::Mat curr_roi = cv::Mat(right_dimg, curr_rect);
+			double left_prevdval = getWindowDepthValue(left_prevroi);double right_prevdval = getWindowDepthValue(right_prevroi);
+			double right_currdval = getWindowDepthValue(curr_roi);
+			double leftdval_diff, rightdval_diff;
+			leftdval_diff = std::abs(left_prevdval - right_currdval);
+			rightdval_diff = std::abs(right_prevdval - right_currdval);
+			if(leftdval_diff > rightdval_diff && (leftdval_diff-rightdval_diff)/(leftdval_diff+rightdval_diff) > 0.4){
+				//rightdval is more similar, right marker will be chosen with left marker of current frame
+				windows = std::pair<cv::Rect,cv::Rect>(prev_frame.getRightMarker(), curr_frame.getLeftMarker());
+				return windows;
+			}else{
+				//leftdval is more similar, left marker will be chosen with right marker of current frame
+				windows = std::pair<cv::Rect,cv::Rect>(curr_frame.getRightMarker(),prev_frame.getLeftMarker()); 
+				return windows;
+			}
+		}
+	}else if(prev_dwinx.size() == 0 && curr_dwinx.size() == 0){
+		//there are no change in deviation in neither the first frame nor the second frame
+		//stitch right marker of prev frame with left marker of current frame
+		windows = std::pair<cv::Rect,cv::Rect>(prev_frame.getRightMarker(), curr_frame.getLeftMarker());
+
+		return windows;
+	}else{
+	
+		for(int prev_dev = prev_dwinx.size(); prev_dev > 0; prev_dev--){
+			for(int curr_dev = 0; curr_dev < curr_cwinx.size(); curr_dev+=2){
+
+				cv::Vec3b L_lastcolour = prev_colours.at(prev_dev);
+				cv::Vec3b R_firstcolour = curr_colours.at(curr_dev);
+				double colourdiff = compareColours(L_lastcolour,R_firstcolour);
+				printf("colour diff : %f\n", colourdiff);
+				if(compareColours(L_lastcolour,R_firstcolour) < colourdiff_thresh){
+					//no significant change of color between these two region
+					//now check if the two sides are of similar depth values
+					//get corresponding depth deviation windows, split them and calculate the corresponding depth values
+					cv::Rect prev_window = prev_dwinx.back(); cv::Rect curr_window = curr_dwinx.back();
+					//get the right side of the prev frame window
+					cv::Mat prev_roi = cv::Mat(left_dimg, cv::Rect(prev_window.x + (prev_window.width/2), prev_window.y, (prev_window.width/2)-1, prev_window.height));
+					cv::Mat curr_roi = cv::Mat(right_dimg, cv::Rect(curr_window.x , curr_window.y, (curr_window.width/2), curr_window.height));
+	
+					double prev_dval = getWindowDepthValue(prev_roi); double curr_dval = getWindowDepthValue(curr_roi);
+					printf("prev_dval %f, curr_dval : %f\n", prev_dval, curr_dval);
+					double dval_diff = std::abs(prev_dval - curr_dval);
+					printf("dval_diff :%f\n", dval_diff);
+					double diff_percentage = (dval_diff/(prev_dval + curr_dval)) * 100;
+					if(diff_percentage < 45){
+						printf("diff percentage : %f\n", diff_percentage);
+						//no significant differences between the two average depth values
+						//possible stitching area found for that side
+						cv::Rect left_window, right_window;
+
+						if(prev_window.x > left_dimg.cols/2){
+							left_window = prev_frame.getRightMarker();
+							//left_window = std::pair<int,int>(prev_frame.getRightMarker().x, prev_frame.getRightMarker().y);
+						}else if(prev_window.x < left_dimg.cols/2){
+							left_window = prev_frame.getLeftMarker();
+							//left_window = std::pair<int,int>(prev_frame.getLeftMarker().x, prev_frame.getLeftMarker().y);
+						}
+
+						if(curr_window.x > right_dimg.cols/2){
+							right_window = curr_frame.getRightMarker();
+							//right_window = std::pair<int,int>(curr_frame.getRightMarker().x, curr_frame.getRightMarker().y);
+						}else if(curr_window.x < right_dimg.cols/2){
+							right_window = curr_frame.getLeftMarker();
+							//right_window = std::pair<int,int>(curr_frame.getRightMarker().x, curr_frame.getRightMarker().y);
+						}
+						windows = std::pair<cv::Rect,cv::Rect>(left_window, right_window);
+						//windows = std::pair<std::pair<int, int>,std::pair<int, int>>(left_window, right_window);
+			
+						return windows;
+					}
+				}else{
+					//significant changes in colour. check the second one deviation
+				}
+			}//end inner for
+		}//end outer for
+	}//end else
 }
 
 //converts the offset coordinates in the first image to the offset coordinates in the second offset

@@ -39,6 +39,15 @@
     <ClInclude Include="ColorProcessor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Frame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DoorDetector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DoorCandidate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -72,6 +81,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ColorProcessor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Frame.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DoorDetector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DoorCandidate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

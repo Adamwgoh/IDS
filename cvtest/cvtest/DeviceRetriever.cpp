@@ -148,10 +148,10 @@ void DeviceRetriever::onNewDepthSample(DepthNode node, DepthNode::NewSampleRecei
 			ss << data.depthMap[index];
 			ss << "\n";
 		}
-		if(data.depthMap[index] != 32001){
+		if(data.depthMap[index] != 32002){
 			depthframe.data[index]	 = data.depthMap[index];
 		}else{
-			depthframe.data[index] = data.depthMap[index];
+			depthframe.data[index] = 0;
 		}
 		
 	}
