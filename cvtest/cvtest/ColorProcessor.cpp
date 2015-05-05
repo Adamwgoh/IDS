@@ -278,7 +278,10 @@ cv::Rect ColorProcessor::MatchingKeypoints(cv::Mat img1, cv::Mat img2,std::vecto
 		if(ex < smallestx)	smallestx = ex;
 		if(why < smallesty)	smallesty = why;
 	}
-
+	if(smallestx < 0) smallestx = 0;
+	if(smallesty < 0) smallesty = 0;
+	if(largestx > img2.rows) largestx = img2.rows;
+	if(largesty > img2.rows) largesty = img2.rows;
 	int x = (int) smallestx ; int y = (int) smallesty;
 	int roix = (int) smallestx + img1.cols;
 	int width = largestx - smallestx;
@@ -287,12 +290,13 @@ cv::Rect ColorProcessor::MatchingKeypoints(cv::Mat img1, cv::Mat img2,std::vecto
 
 	printf("extra width : %d, extra height : %d\n", (x+width), (x+height));
 	
-	if(x+width > img_matches.cols){
-		width -= ((x+width)-img_matches.cols);
+	if(roix+width > img_matches.cols){
+		width -= ((roix+width)-img_matches.cols);
+
 		printf("extra width\n");
 	}
 
-	if(y+height   > img_matches.rows)	height -= ((x+height)-img_matches.rows);
+	if(y+height   > img_matches.rows)	height -= ((y+height)-img_matches.rows);
 	printf("largestx :%d, smallestx : %d, largesty : %d, smallesty : %d\n", largestx, smallestx,  largesty, smallesty);
 	printf("width :%d, height:%d\n", width, height);
 
@@ -579,6 +583,18 @@ std::vector<cv::Vec3b> ColorProcessor::GetClassesColor(cv::Mat src, int k, int i
 	} 
 
 	return result_classes;
+}
+
+//RGB delta color difference comparison. Similar to Lab's delta E formulae, it uses the RGB color space instead
+//calculate the color difference
+double ColorProcessor::compareColours(cv::Vec3b L_lastcolour,cv::Vec3b R_firstcolour){
+
+	double diff = std::sqrt(	std::pow((double) L_lastcolour.val[0] - (double) R_firstcolour.val[0],2)+
+								std::pow((double) L_lastcolour.val[1] - (double) R_firstcolour.val[1],2)+
+								std::pow((double) L_lastcolour.val[2] - (double) R_firstcolour.val[2],2)
+								);
+
+	return diff;
 }
 
 cv::Mat ColorProcessor::ColorClusteredImg(cv::Mat src, int k, int iteration){

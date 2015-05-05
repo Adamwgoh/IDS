@@ -47,6 +47,8 @@ std::vector<Line> DoorDetector::findDepthLines(cv::Mat depth_src, cv::Mat depth_
 		cv::waitKey(40);
 		//cv::waitKey(0);
 	}
+	cv::waitKey(0);
+	cv::waitKey(40);
 	std::vector<Line> temp_models = std::vector<Line>();
 	models.push_back(temp_lines.at(0));
 	Line initial = models.at(0);
@@ -82,10 +84,7 @@ std::vector<Line> DoorDetector::findDepthLines(cv::Mat depth_src, cv::Mat depth_
 			}
 		}
 	}
-
-
-	printf("nof models found : %d\n", models.size());
-	//draw these lines
+	
 	for(int i = 0; i < models.size(); i++){
 		final_graph = models.at(i).drawLine(final_graph, models.at(i));
 	}
@@ -97,6 +96,7 @@ std::vector<Line> DoorDetector::findDepthLines(cv::Mat depth_src, cv::Mat depth_
 //	cv::waitKey(40);
 //	cv::waitKey(0);
 //	cv::destroyAllWindows();
+
 	return models;
 }
 
@@ -172,12 +172,12 @@ std::vector<std::pair<cv::Rect, Line>> DoorDetector::getExcerpts(cv::Mat depthgr
 	return excerpts;
 }
 
-cv::String DoorDetector::DetectTexts(cv::Mat colorpano){
+const char* DoorDetector::DetectTexts(cv::Mat colorpano){
 	cv::Mat sharpened_pano;
-	cv::String answer;
+	const char* answer;
 	cv::GaussianBlur(colorpano, sharpened_pano, cv::Size(0, 0), 3);
 	cv::addWeighted(colorpano, 1.5, sharpened_pano, -0.5, 0, sharpened_pano);
-	cv::imshow("colorpanp", sharpened_pano);
+	cv::imshow("colorpano", sharpened_pano);
 	cv::waitKey(40);
 	cv::waitKey(0);
 

@@ -12,7 +12,7 @@ public:
 	std::vector<Line> findDepthLines(cv::Mat depth_src, cv::Mat depth_graph);
 	std::vector<cv::Rect> getSegments(cv::Mat depth_graph, std::vector<cv::Rect> rois);
 	std::vector<std::pair<cv::Rect, Line>> getExcerpts(cv::Mat depthgraph, std::vector<cv::Rect> segments, std::vector<Line> models);
-	cv::String DetectTexts(cv::Mat colorpano);
+	const char* DetectTexts(cv::Mat colorpano);
 
 //private functions
 private:

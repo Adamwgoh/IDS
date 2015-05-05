@@ -32,7 +32,7 @@ public:
 
 	std::vector<cv::Mat> findDx(cv::Mat src, cv::Mat graph, int window_width);
 	std::vector<cv::Vec4i> HoughLines(cv::Mat src);
-
+	double compareColours(cv::Vec3b L_lastcolour,cv::Vec3b R_firstcolour);
 	void reduceColor64(cv::Mat& src, cv::Mat& dst);
 	std::vector<cv::Vec3b> GetClassesColor(cv::Mat src, int k, int iteration);
 	cv::Mat ColorClusteredImg(cv::Mat src, int k, int iteration);

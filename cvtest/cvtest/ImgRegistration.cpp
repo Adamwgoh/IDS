@@ -159,9 +159,13 @@ cv::Mat ImageRegistration::stitch(cv::Mat img1, cv::Mat img2, int stitchx, int s
 			//blank spaces is above the image, affects stitching. Needs to be take away
 			prev_offy = pos_stitchy +  (img1.rows - img2.rows);
 		}
-
-		roi2 = cv::Mat(final, cv::Rect(img1.cols - (img2.cols - stitchx),
-			prev_offy, img2.cols, img2.rows));
+		if(stitchx > img2.cols){
+			
+			roi2 = cv::Mat(final, cv::Rect(stitchx, pos_stitchy, img2.cols, img2.rows));
+		}else{
+			roi2 = cv::Mat(final, cv::Rect(img1.cols - (img2.cols - stitchx),
+				prev_offy, img2.cols, img2.rows));
+		}
 	}else{
 		roi2 = cv::Mat(final, cv::Rect(stitchx, pos_stitchy, img2.cols, img2.rows));
 	}
@@ -274,7 +278,7 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr2(cv::Mat 
 	}
 
 	cv::Mat right_roi = cv::Mat(R_src, right_window);
-
+	
 	//calculate correlation
 	for(int offsety = start_offsety; offsety < end_offsety; offsety++){
 		for(int offsetx = start_offsetx; offsetx > end_offsetx; offsetx--){
@@ -643,6 +647,7 @@ std::pair<cv::Rect, cv::Rect> ImageRegistration::findWindowOfInterest(Frame prev
 			double leftdval_diff, rightdval_diff;
 			leftdval_diff = std::abs(left_prevdval - right_currdval);
 			rightdval_diff = std::abs(right_prevdval - right_currdval);
+			
 			if(leftdval_diff > rightdval_diff && (leftdval_diff-rightdval_diff)/(leftdval_diff+rightdval_diff) > 0.4){
 				//rightdval is more similar, right marker will be chosen with left marker of current frame
 				windows = std::pair<cv::Rect,cv::Rect>(prev_frame.getRightMarker(), curr_frame.getLeftMarker());
