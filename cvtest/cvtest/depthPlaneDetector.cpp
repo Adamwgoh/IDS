@@ -18,8 +18,8 @@ depthPlaneDetector::depthPlaneDetector(cv::Mat* input, int w_ksize, int h_ksize)
 {
 	excerpt_xs = std::vector<int>();
 	excerpts = std::vector<cv::Rect>();
-	printf("Initialized depthPlaneDetector\n");
-	printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
+	//printf("Initialized depthPlaneDetector\n");
+	//printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
 }
 
 depthPlaneDetector::depthPlaneDetector(int w_ksize, int h_ksize)
@@ -27,8 +27,8 @@ depthPlaneDetector::depthPlaneDetector(int w_ksize, int h_ksize)
 {
 	excerpt_xs = std::vector<int>();
 	excerpts = std::vector<cv::Rect>();
-	printf("Initialized depthPlaneDetector.\n");
-	printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
+	//printf("Initialized depthPlaneDetector.\n");
+	//printf("Window size : (%d,%d)\n", w_ksize, h_ksize);
 }
 
 cv::Size depthPlaneDetector::getWindowsize(){	return windowsize;	}
@@ -148,7 +148,7 @@ std::vector<cv::Mat> depthPlaneDetector::searchDeviationDx(cv::Mat input, cv::Ma
 }
 
 std::vector<cv::Mat> depthPlaneDetector::findEdges(cv::Mat devgraph, cv::Mat colorimg, double max, std::vector<int> max_x){
-	printf("finding edges..\n");
+	//printf("finding edges..\n");
 	std::vector<cv::Mat> result = std::vector<cv::Mat>();
 	std::vector<int> pos_xs = std::vector<int>();
 	double hill_thresh;
@@ -184,28 +184,28 @@ std::vector<cv::Mat> depthPlaneDetector::findEdges(cv::Mat devgraph, cv::Mat col
 				}
 
 				if(col+windowsize.width < devgraph.cols && !withinhills){
-					printf("max_val not within max_x %d is %f, at %d\n", max_x, val, col);
+					//printf("max_val not within max_x %d is %f, at %d\n", max_x, val, col);
 					max_val = val;
 					max_col = col;
 				}
 		
 			}else if( largest == 0){
 				//no limit/first run
-				printf("max_val is now :%f at col :%d\n", max_val, max_col);
+				//printf("max_val is now :%f at col :%d\n", max_val, max_col);
 				max_val = val;
 				max_col = col;				
 			}
 		}
 	}//end for loop
-	printf("max val : %f, max_col : %d\n", max_val, max_col);
+	//printf("max val : %f, max_col : %d\n", max_val, max_col);
 	//create an roi region for it
 	if(max_col == 0){
 		//no roi found
-		printf("no roi found\n");
+		//printf("no roi found\n");
 		return result;
 	}
 
-	printf("found one roi\n");
+	//printf("found one roi\n");
 	cv::Mat roi(colorimg, cv::Rect(max_col, 0, windowsize.width,graph.rows));
 
 	result.push_back(roi);

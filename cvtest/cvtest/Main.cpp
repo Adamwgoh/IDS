@@ -14,6 +14,39 @@ const int VGA_HEIGHT = 480;
 const int QQVGA_WIDTH = 160;
 const int QQVGA_HEIGHT = 120;
 
+void getFrames(std::string folderurl, std::vector<cv::Mat>* cframes, std::vector<cv::Mat>* dframes){
+	printf("gotten url %s \n", folderurl.c_str());
+	std::ostringstream url;
+	url.str("");
+	for(int i = 1; i < 4; i++){
+		url << folderurl.c_str();
+		url << i;url << "cframe.jpg";
+		cframes->push_back(cv::imread(url.str()));
+		url.str("");url << folderurl.c_str();
+		url << i;url << "depthframe.jpg";
+		dframes->push_back(cv::imread(url.str(), CV_LOAD_IMAGE_GRAYSCALE));
+		url.str("");
+	}
+}
+
+std::vector<cv::Mat> newsetfiveColour(){
+	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
+	frames.push_back(cv::imread("rawdata\\set_five\\1cframe.jpg"));
+	frames.push_back(cv::imread("rawdata\\set_five\\2cframe.jpg"));
+	frames.push_back(cv::imread("rawdata\\set_five\\3cframe.jpg"));
+
+	return frames;
+}
+
+std::vector<cv::Mat> newsetfiveDepth(){
+	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
+	frames.push_back(cv::imread("rawdata\\set_five\\1depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
+	frames.push_back(cv::imread("rawdata\\set_five\\2depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
+	frames.push_back(cv::imread("rawdata\\set_five\\3depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
+
+	return frames;
+}
+
 std::vector<cv::Mat> newsetfourColour(){
 	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
 	frames.push_back(cv::imread("rawdata\\set_four\\1cframe.jpg"));
@@ -33,6 +66,7 @@ std::vector<cv::Mat> newsetfourDepth(){
 
 	return frames;
 }
+
 std::vector<cv::Mat> newsetoneColour(){
 	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
 	frames.push_back(cv::imread("rawdata\\newsetone\\2cframe.jpg"));
@@ -69,37 +103,6 @@ std::vector<cv::Mat> newsetoneDepth(){
 	return frames;
 }
 
-std::vector<cv::Mat> getCFrames(){
-	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
-	//this is a messy temporary. Will fix as soon as i'm sure i can stitch all together
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\3cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\4cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\5cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\6cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\7cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\8cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\9cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\10cframe.jpg"));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\11cframe.jpg"));
-	
-	return frames;
-}
-
-std::vector<cv::Mat> getDFrames(){
-	std::vector<cv::Mat> frames = std::vector<cv::Mat>();
-	//this is a messy temporary. Will fix as soon as i'm sure i can stitch all together
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\3depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\4depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\5depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\6depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\7depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\8depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\9depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\10depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	frames.push_back(cv::imread("rawdata\\setthree_with_markers\\11depthframe.jpg", CV_LOAD_IMAGE_GRAYSCALE));
-	
-	return frames;
-}	
 
 //stitches all frames based on able to find keypoints. Stops when keypoint not found. FOR NOW
 cv::Mat StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes, cv::String dataset){
@@ -171,17 +174,17 @@ cv::Mat StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes,
 			std::vector<cv::Rect> excerpt_xs = detector.getExcerptWindow();
 			prev_frame.storeColourdev_window(excerpt_xs);
 			prev_frame.storeDepthdev_window(excerpt_xs);
-			printf("nof excerpts :%d\n", excerpts.size());
+			//printf("nof excerpts :%d\n", excerpts.size());
 			for(int k = 0; k < excerpts.size(); k++){
 
 				cv::Mat window = excerpts.at(k);
 				//split the excerpt down the middle
 				cv::Mat L_window = cv::Mat(window, cv::Rect(0, 0, window.cols/2, window.rows));
 				cv::Mat R_window = cv::Mat(window, cv::Rect((window.cols/2)-1, 0, window.cols/2, window.rows));
-				cv::imshow("leftwindow", L_window);
-				cv::imshow("rightwindow", R_window);
-				cv::waitKey(40);
-				printf("extracting color\n");
+				//cv::imshow("leftwindow", L_window);
+				//cv::imshow("rightwindow", R_window);
+				//cv::waitKey(40);
+				//printf("extracting color\n");
 
 				//split the excerpt into two majority colors
 				std::vector<cv::Vec3b> roi_classesL = cProc.GetClassesColor(L_window, 5, 2);
@@ -217,7 +220,7 @@ cv::Mat StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes,
 				//cv::waitKey(40);
 				//cv::waitKey(0);
 				//cv::destroyAllWindows();
-				printf("extracting color\n");
+				//printf("extracting color\n");
 				cv::GaussianBlur(L_window, L_window, cv::Size(7,7),5);
 				cv::GaussianBlur(L_window, L_window, cv::Size(7,7),5);
 				//split the excerpt into two majority colors
@@ -267,6 +270,7 @@ cv::Mat StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes,
 				window = std::pair<cv::Rect,cv::Rect>(prev_frame.getRightMarker(), curr_frame.getLeftMarker());
 			}
 		}
+
 
 		//find offset of VGA resolution with given window offset
 		std::pair<int, int> corr_values = imgreg.getColorOffset2(prev_cimg, R_cimg, window.first, window.second);
@@ -370,139 +374,100 @@ int main(){
 	//DeviceRetriever* retrieve = new DeviceRetriever();
 	//retrieve->runNodes();
 	//cv::waitKey(0);
-	cv::String dataset;
-	clock_t timer;
-	ColorProcessor cProc = ColorProcessor();
-	depthPlaneDetector depth_detector = depthPlaneDetector(61,30);
-	DoorDetector door_detector = DoorDetector();
+	while(true){
+		std::system ("CLS"); //this will clear the screen of any text from prior run
+		std::cin.clear();
+			printf("*****************************************************************\n");
+			printf("*     Image Stitching and Door Detection System                 *\n");
+			printf("*				By Adam w Goh  								    *\n");
+			printf("*****************************************************************\n\n");
+
+			//Prompt user for File Input
+			printf("Input Folder for stitching (rawdata\\set_five\\): \t");
+			std::string file = "";
+			std::getline(std::cin, file);
+			printf("\n");
+			printf("input data is from folder: %s\n", file.c_str());
+			std::vector<cv::Mat> cframes = std::vector<cv::Mat>();
+			std::vector<cv::Mat> dframes = std::vector<cv::Mat>();
+			getFrames(file, &cframes, &dframes);
+			printf("gotten frames.. image stitching begins..\n");
+			cv::String dataset;
+			clock_t timer;
+			ImageRegistration imgreg = ImageRegistration();
+			ColorProcessor cProc = ColorProcessor();
+			depthPlaneDetector depth_detector = depthPlaneDetector(61,30);
+			DoorDetector door_detector = DoorDetector();
 	
-	std::ostringstream stream;
-	timer = clock();
-	std::vector<cv::Mat> cframes = std::vector<cv::Mat>();
-	std::vector<cv::Mat> dframes = std::vector<cv::Mat>();
-	//cframes = newsetoneColour();
-	//dframes = newsetoneDepth();
-	//cframes = getCFrames();
-	//dframes = getDFrames();
-	cframes = newsettwoColor();
-	dframes = newsettwoDepth();
-	dataset = "two";
-	//cv::Mat final  = StitchFrames(cframes, dframes,dataset);
-	//cv::Mat frame = (cv::imread("rawdata\\newsettwo\\2cframe.jpg"));
-	//const char* text = door_detector.DetectTexts(frame);
-	//printf("text detected : %s\n", text);
-	//cv::imshow("final", final);
-	//cv::waitKey(40);
-	cv::waitKey(0);
-	stream << "rawdata\\result\\";
-	stream << dataset + "colorstitch.jpg";
-	const std::string colorstitch = stream.str();
-	cv::Mat colorpano = cv::imread(colorstitch);
-	stream.str("");
+		std::ostringstream stream;
+		timer = clock();
+		//cframes = newsetfiveColour();
+		//dframes = newsetfiveDepth();
+		//cframes = newsetoneColour();
+		//dframes = newsetoneDepth();
+		//cframes = getCFrames();
+		//dframes = getDFrames();
+		//cframes = newsettwoColor();
+		//dframes = newsettwoDepth();
 
-	stream << "rawdata\\result\\";stream << dataset + "depthstitch.jpg";
+		std::pair<cv::Mat,cv::Mat> panoramas = imgreg.StitchFrames(cframes, dframes);
+		cv::Mat colorpano = panoramas.first;cv::Mat depthpano = panoramas.second;
+		//cv::Mat frame = (cv::imread("rawdata\\newsettwo\\2cframe.jpg"));
+		//const char* text = door_detector.DetectTexts(frame);
+		//printf("text detected : %s\n", text);
+		//cv::imshow("final", final);
+		//cv::waitKey(40);
+		//cv::waitKey(0);
+		//stream << "rawdata\\result\\";
+		//stream << dataset + "colorstitch.jpg";
+		//const std::string colorstitch = stream.str();
+		////cv::Mat colorpano = cv::imread(colorstitch);
+		//stream.str("");
+
+		//stream << "rawdata\\result\\";stream << dataset + "depthstitch.jpg";
 	
-	const std::string depthstitch = stream.str();
-	cv::Mat depthpano = cv::imread(depthstitch, CV_LOAD_IMAGE_GRAYSCALE);
-	stream.str().clear();
-	cv::imshow("depthpano", depthpano);
-	cv::waitKey(40);
-	cv::waitKey(0);
-	cv::Mat depthgraph = depth_detector.displayDepthGraph(depthpano,0,0);
+		//const std::string depthstitch = stream.str();
+		//cv::Mat depthpano = cv::imread(depthstitch, CV_LOAD_IMAGE_GRAYSCALE);
+		//stream.str().clear();
+		cv::Mat depthgraph = depth_detector.displayDepthGraph(depthpano,0,0);
 
-		stream << "rawdata\\result\\";
-		stream << "depthgraph.jpg";
-		cv::String filename = stream.str();
-		if(cv::imwrite(filename, depthgraph)){
-			printf("Image saved. \n");
-		}else{
-			printf("Error saving Image. \n");
-		}
-	cv::destroyAllWindows();	
-	std::vector<cv::Rect> keypoints = depth_detector.searchDepthDeviation(depthpano, depthgraph);
-	std::vector<Line> line_models = door_detector.findDepthLines(depthpano, depthgraph);
-	std::vector<cv::Rect> segments = door_detector.getSegments(depthgraph, keypoints);
-	//match the vertical line segments with line models to get a candidate door
-	std::vector<std::pair<cv::Rect, Line>> excerpts = door_detector.getExcerpts(depthgraph, segments, line_models);
-	std::vector<cv::Mat> color_excerpts = std::vector<cv::Mat>();
-
-	cv::Mat panoline;depthgraph.copyTo(panoline);
-	for(int i = 0; i < excerpts.size(); i++){
-		cv::Mat colorexcerpt = cv::Mat(colorpano, excerpts.at(i).first);
-		color_excerpts.push_back(colorexcerpt);
-		panoline = excerpts.at(i).second.drawLine(panoline,
-			excerpts.at(i).second, excerpts.at(i).first);
-	}
-
-	cv::imshow("panoline", panoline);
-	cv::waitKey(30);
-	cv::waitKey(0);
-	std::ostringstream steam;
-	steam<< "rawdata\\result\\";
-	steam << "panoline.jpg";
-	cv::String fileaname = steam.str();
-	if(cv::imwrite(fileaname, panoline)){
-		printf("Image saved. \n");
-	}else{
-		printf("Error saving Image. \n");
-	}
-
-	//get their colours and look for change of colour between twon segments
-	cv::Vec3b prev_color, curr_color;
-	cv::Vec3b* temp_color = NULL;
-	int doorcandidate_excerpt = 0;
-	prev_color = cProc.GetClassesColor(color_excerpts.at(0),2,5).at(0);
-	for(int k = 1; k < color_excerpts.size(); k++){
-		curr_color = cProc.GetClassesColor(color_excerpts.at(k),2,5).at(0);
-		cv::imshow("previous excerpt", color_excerpts.at(k-1));
-		cv::imshow("curr_excerpt", color_excerpts.at(k));
-		cv::imshow("previous colour", cProc.displayColor(prev_color));
-		cv::imshow("curr color", cProc.displayColor(curr_color));
-		cv::waitKey(40);
-		cv::waitKey(0);
-
-		double colourdiff = cProc.compareColours(prev_color,curr_color);
-		if(colourdiff > 50){
-			//there's a change in color, check if the next color 
-			//is similar to the changed one 
-			if(temp_color == NULL){
-				//mark excerpt as potential
-				temp_color = &curr_color;
-				doorcandidate_excerpt = k;
+			stream << "rawdata\\result\\";
+			stream << "depthgraph.jpg";
+			cv::String filename = stream.str();
+			if(cv::imwrite(filename, depthgraph)){
+				printf("Image saved. \n");
 			}else{
-				//there's change in colour between previous and now colour
-				//check if there's difference in colour between temp and now?
-				colourdiff = cProc.compareColours(prev_color, *temp_color);
-				if(colourdiff > 50){
-					break;
-				}
-				temp_color = &prev_color;
-				doorcandidate_excerpt = k;
+				printf("Error saving Image. \n");
 			}
+
+		cv::imshow("stitched colour", colorpano);
+		cv::imshow("stitched depth", depthpano);
+		cv::imshow("stitched depth graph", depthgraph);
+		cv::waitKey(40);
+		timer = clock() - timer;
+		std::system("PAUSE");
+		cv::destroyAllWindows();	
+		printf("beginning door detection..\n");
+		DoorCandidate candid = door_detector.hasDoor(colorpano,depthpano);
+		if(candid.hasDoor()){
+			printf("candidate found\n");
+			candid.printLines();
+			cv::imshow("candidate depthgraph", candid.getDoorGraph());
+			cv::imshow("door colour", cProc.displayColor(candid.getDoorColour()));
+			cv::imshow("candidate found\n", candid.getDoorExtract());
+			cv::waitKey(40);
+			cv::waitKey(0);
+		}else{
+			printf("No candidate found!\n");
+			std::system("PAUSE");
 		}
-		prev_color = curr_color;
+
+		timer = clock() - timer;
+		printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
+
+		cv::waitKey(40);
+		std::system("PAUSE");
+
 	}
-
-	//extract doorexcerpt and display it
-	cv::Mat candidate = cv::Mat(colorpano, excerpts.at(doorcandidate_excerpt).first);
-	cv::imshow("candidate", candidate);
-	cv::waitKey(40);cv::waitKey(0);
-	cv::destroyAllWindows();
-	steam.str("");
-	steam<< "rawdata\\result\\";
-	steam << "candidate.jpg";
-	fileaname = steam.str();
-	if(cv::imwrite(fileaname, candidate)){
-		printf("Image saved. \n");
-	}else{
-		printf("Error saving Image. \n");
-	}
-
-	timer = clock() - timer;
-	printf("Total program runtime %f\n",((double) timer/CLOCKS_PER_SEC) );
-
-	cv::waitKey(40);
-	cv::waitKey(0);
-
 	return 0;
 }

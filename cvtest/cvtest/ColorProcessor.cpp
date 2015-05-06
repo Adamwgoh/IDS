@@ -241,9 +241,9 @@ cv::Rect ColorProcessor::MatchingKeypoints(cv::Mat img1, cv::Mat img2,std::vecto
 		good_matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1),
 		std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
-	for(int i = 0; i < (int) good_matches.size(); i++){
-		printf("--GoodMatch [%d] Keypoint1 : %d -- Keypoint 2: %d \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx);
-	}
+	//for(int i = 0; i < (int) good_matches.size(); i++){
+	//	printf("--GoodMatch [%d] Keypoint1 : %d -- Keypoint 2: %d \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx);
+	//}
 
 	//extract the detected objects
 	std::vector<cv::Point2f> obj, scene;
@@ -288,17 +288,17 @@ cv::Rect ColorProcessor::MatchingKeypoints(cv::Mat img1, cv::Mat img2,std::vecto
 	int height = largesty - smallesty;
 	//assert that the roi is in range of image
 
-	printf("extra width : %d, extra height : %d\n", (x+width), (x+height));
+	//printf("extra width : %d, extra height : %d\n", (x+width), (x+height));
 	
 	if(roix+width > img_matches.cols){
 		width -= ((roix+width)-img_matches.cols);
 
-		printf("extra width\n");
+		//printf("extra width\n");
 	}
 
 	if(y+height   > img_matches.rows)	height -= ((y+height)-img_matches.rows);
-	printf("largestx :%d, smallestx : %d, largesty : %d, smallesty : %d\n", largestx, smallestx,  largesty, smallesty);
-	printf("width :%d, height:%d\n", width, height);
+	//printf("largestx :%d, smallestx : %d, largesty : %d, smallesty : %d\n", largestx, smallestx,  largesty, smallesty);
+	//printf("width :%d, height:%d\n", width, height);
 
 	cv::Mat roi = cv::Mat(img_matches, cv::Rect(roix,y,width,height));
 	

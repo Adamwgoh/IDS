@@ -11,14 +11,17 @@ public:
 
 	void storeLine(Line line_model);
 	void storeDoorExtract(cv::Mat roi);
-	void storeDoorDepth(double depth_val);
 	void storeDoorColour(cv::Vec3b door_colour);
-	
+	void storeDoorGraph(cv::Mat graph);
+
 	std::vector<Line> getLineModels();
 	cv::Mat getDoorExtract();
-	double getDoorDepth();
+	cv::Mat getDoorGraph();
 	cv::Vec3b getDoorColour();
-
+	
+	void setHasDoor(bool hasdoor);
+	bool hasDoor();
+	void printLines();
 //private function
 private:
 
@@ -29,9 +32,10 @@ public:
 
 //private variable
 private:
+	bool doorfound;
 	std::vector<Line> depth_lines;
 	cv::Mat door;
-	double door_depth;
+	cv::Mat door_graph;
 	cv::Vec3b door_colour;
 
 };

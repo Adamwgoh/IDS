@@ -8,7 +8,7 @@ class DoorDetector{
 //public functions
 public:
 	DoorDetector();
-	DoorCandidate hasDoor(cv::Mat colour_src, cv::Mat depth_src);
+	DoorCandidate hasDoor(cv::Mat colorpano, cv::Mat depthpano);
 	std::vector<Line> findDepthLines(cv::Mat depth_src, cv::Mat depth_graph);
 	std::vector<cv::Rect> getSegments(cv::Mat depth_graph, std::vector<cv::Rect> rois);
 	std::vector<std::pair<cv::Rect, Line>> getExcerpts(cv::Mat depthgraph, std::vector<cv::Rect> segments, std::vector<Line> models);

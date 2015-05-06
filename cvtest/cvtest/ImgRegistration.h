@@ -1,6 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include "depthPlaneDetector.h"
+#include "ColorProcessor.h"
 #include "Frame.h"
 
 #include <pcl/sample_consensus/ransac.h>
@@ -31,7 +32,7 @@ public :
 	pcl::PointCloud<pcl::PointXYZ>::Ptr RANSAC(pcl::PointCloud<pcl::PointXYZ>::Ptr inputcloud);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cvtMat2Cloud(cv::Mat* src);
 	cv::Mat cvCloud2Mat(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-	
+	std::pair<cv::Mat,cv::Mat> StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes);
 
 	//private function
 private :

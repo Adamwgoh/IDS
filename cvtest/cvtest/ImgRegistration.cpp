@@ -1,4 +1,6 @@
 #include "ImgRegistration.h"
+const int LEFT2RIGHT = 19;
+const int RIGHT2LEFT = 91;
 
 //constructor
 ImageRegistration::ImageRegistration(){
@@ -47,8 +49,8 @@ void ImageRegistration::multipeakstitch(cv::Mat image1, cv::Mat image2){
 			}
 		}
 	}
-	printf("total peaks : %d\n", corrs.size());
-	printf("highest corr val : %f, x : %d, y : %d\n", corr, x, y);
+	//printf("total peaks : %d\n", corrs.size());
+	//printf("highest corr val : %f, x : %d, y : %d\n", corr, x, y);
 	stitch(image1,image2, x,y);
 	for(int i = corrs.size()-1; i > corrs.size()-7; i--){
 		//get the top 6 peaks
@@ -201,7 +203,7 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 	
 	//search only in this window if specified
 	if(search_window.height != 0 && search_window.width != 0){
-		printf("wcoverage : %d, hcoverage: %d\n", search_window.width, search_window.height);
+		printf("calculating normalized cross-correlation value..\n");
 		start_offsety = -search_window.height;
 		end_offsety = search_window.height;
 		assert(end_offsety <= R_src.rows );
@@ -210,7 +212,8 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 		start_offsetx = startx + search_window.width;
 		end_offsetx = startx;
 	}else{
-		printf("wcoverage : %d, hcoverage : %d\n", (int) (((double) L_src.cols)), (int) (((double) L_src.rows)));
+		
+		printf("calculating normalized cross-correlation value..\n");
 	}
 
 	//calculate correlation
@@ -219,8 +222,8 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 			
 			printf("offsetx : %d, offsety : %d\n", offsetx, offsety);
 			cv::Mat stitchroi = stitch(L_src, R_src,offsetx, offsety);
-			cv::imshow("stitchroi", stitchroi);
-			cv::waitKey(40);
+			//cv::imshow("stitchroi", stitchroi);
+			//cv::waitKey(40);
 			//cv::waitKey(0);
 			double corrval = calcCrossVal(L_src, R_src, offsetx, offsety,search_window);
 			//printf("corrval : %f\n", corrval);
@@ -245,7 +248,7 @@ std::pair<std::pair<int,int>,double> ImageRegistration::Norm_CrossCorr(cv::Mat L
 
 
 /**
-*	Calculates normalized cross-correlation between two image with the given window coverage in percentage,
+*	Calculates srmalized cross-correlation between two image with the given window coverage in percentage,
 *	that is, the value must be between 0 to 100
 *	Output is the highest cross-correlation value within the given window.
 **/
@@ -561,7 +564,7 @@ std::pair<int,int>	ImageRegistration::getColorOffset2(cv::Mat img1, cv::Mat img2
 	//convert to original resolution offset
 	std::pair<int, int> result = convertOffset(cv::Size(L_src.cols, R_src.rows), cv::Size(VGA_WIDTH, VGA_HEIGHT), highest_offset.first, highest_offset.second);
 	
-	printf("before convert coord : (%d,%d), after convert to VGA coord : (%d,%d)\n", highest_offset.first, highest_offset.second, result.first, result.second);
+	//printf("before convert coord : (%d,%d), after convert to VGA coord : (%d,%d)\n", highest_offset.first, highest_offset.second, result.first, result.second);
 	return result;
 }
 
@@ -672,7 +675,7 @@ std::pair<cv::Rect, cv::Rect> ImageRegistration::findWindowOfInterest(Frame prev
 				cv::Vec3b L_lastcolour = prev_colours.at(prev_dev);
 				cv::Vec3b R_firstcolour = curr_colours.at(curr_dev);
 				double colourdiff = compareColours(L_lastcolour,R_firstcolour);
-				printf("colour diff : %f\n", colourdiff);
+				//printf("colour diff : %f\n", colourdiff);
 				if(compareColours(L_lastcolour,R_firstcolour) < colourdiff_thresh){
 					//no significant change of color between these two region
 					//now check if the two sides are of similar depth values
@@ -683,12 +686,12 @@ std::pair<cv::Rect, cv::Rect> ImageRegistration::findWindowOfInterest(Frame prev
 					cv::Mat curr_roi = cv::Mat(right_dimg, cv::Rect(curr_window.x , curr_window.y, (curr_window.width/2), curr_window.height));
 	
 					double prev_dval = getWindowDepthValue(prev_roi); double curr_dval = getWindowDepthValue(curr_roi);
-					printf("prev_dval %f, curr_dval : %f\n", prev_dval, curr_dval);
+					//printf("prev_dval %f, curr_dval : %f\n", prev_dval, curr_dval);
 					double dval_diff = std::abs(prev_dval - curr_dval);
-					printf("dval_diff :%f\n", dval_diff);
+					//printf("dval_diff :%f\n", dval_diff);
 					double diff_percentage = (dval_diff/(prev_dval + curr_dval)) * 100;
 					if(diff_percentage < 45){
-						printf("diff percentage : %f\n", diff_percentage);
+						//printf("diff percentage : %f\n", diff_percentage);
 						//no significant differences between the two average depth values
 						//possible stitching area found for that side
 						cv::Rect left_window, right_window;
@@ -732,6 +735,220 @@ std::pair<int, int>	ImageRegistration::convertOffset(cv::Size src, cv::Size targ
 	std::pair<int,int> new_off = std::pair<int, int>(new_offx, new_offy);
 
 	return new_off;
+}
+
+std::pair<cv::Mat,cv::Mat> ImageRegistration::StitchFrames(std::vector<cv::Mat> cframes, std::vector<cv::Mat> dframes){
+	std::pair<cv::Mat, cv::Mat> result = std::pair<cv::Mat, cv::Mat>();
+	assert(cframes.size() == dframes.size());
+	int direction = LEFT2RIGHT; //by default left to right stitching
+	cv::Mat L_cimg, R_cimg;
+	cv::Mat L_dimg, R_dimg;
+	cv::Mat prev_cimg, prev_dimg;
+	cv::Mat prev_color, curr_color;
+	Frame prev_frame, curr_frame;
+	std::vector<std::pair<int,int>> corr_offsets = std::vector<std::pair<int,int>>();
+	std::pair<cv::Rect, cv::Rect> window;
+	std::vector<cv::Mat> cstitches = std::vector<cv::Mat>();
+	std::vector<cv::Mat> dstitches = std::vector<cv::Mat>();
+	depthPlaneDetector detector(61,30);
+	ColorProcessor cProc = ColorProcessor();
+	cv::Mat marker = cv::imread("rawdata\\marker.jpg");
+
+	for(int i = 0; i < cframes.size()-1; i++){
+		L_cimg = cframes.at(i);
+		R_cimg = cframes.at(i+1);
+		L_dimg = dframes.at(i);
+		R_dimg = dframes.at(i+1);
+		prev_dimg = dframes.at(i);
+		prev_cimg = cframes.at(i);
+		prev_frame = Frame(prev_cimg, prev_dimg, cv::Size(61, 30));
+		curr_frame = Frame(R_cimg, R_dimg, cv::Size(61, 30));
+		cv::medianBlur(L_dimg, L_dimg, 3);
+		cv::medianBlur(R_dimg, R_dimg, 3);
+		
+		//if there's an available stitch already, take that as the reference image
+		if(!cstitches.empty()){	
+			L_cimg = cstitches.back();
+		}		
+
+		if(!dstitches.empty()){
+			L_dimg = dstitches.back();
+			cv::resize(prev_dimg, prev_dimg, cv::Size(R_cimg.cols, R_cimg.rows), CV_INTER_NN);
+		}else{
+			cv::resize(L_dimg, L_dimg, cv::Size(R_cimg.cols, R_cimg.rows), CV_INTER_NN);
+			prev_dimg = L_dimg;
+		}
+
+		cv::resize(R_dimg, R_dimg, cv::Size(R_cimg.cols, R_cimg.rows), CV_INTER_NN);
+		//get the frame's dominant colours
+		cv::Vec3b leftdominant, rightdominant;
+		leftdominant = cProc.GetClassesColor(prev_cimg, 2, 5).front();
+		rightdominant = cProc.GetClassesColor(R_cimg, 2, 5).front();
+		cv::Mat ldominant = cProc.displayColor(leftdominant);
+		cv::Mat rdominant = cProc.displayColor(rightdominant);
+
+		prev_frame.storeDominantColour(leftdominant);
+		curr_frame.storeDominantColour(rightdominant);
+
+		//locate the markers and store them in the frames
+		std::pair<cv::Rect,cv::Rect> prev_markers = cProc.getMarkers(marker, prev_cimg);
+		std::pair<cv::Rect,cv::Rect> curr_markers = cProc.getMarkers(marker, R_cimg);
+	
+		prev_frame.storeLeftMarker(prev_markers.first);
+		prev_frame.storeRightMarker(prev_markers.second);
+		curr_frame.storeLeftMarker(curr_markers.first);
+		curr_frame.storeRightMarker(curr_markers.second);
+		
+		//check for direction if it is the first and second frame
+		if( i == 0){
+			//finds deviation excerpts in depth image and gets its corresponding color image excerpts
+			std::vector<cv::Mat>  excerpts = detector.searchDeviationDx(prev_dimg, prev_cimg);
+			std::vector<cv::Rect> excerpt_xs = detector.getExcerptWindow();
+			prev_frame.storeColourdev_window(excerpt_xs);
+			prev_frame.storeDepthdev_window(excerpt_xs);
+			//printf("nof excerpts :%d\n", excerpts.size());
+			for(int k = 0; k < excerpts.size(); k++){
+
+				cv::Mat window = excerpts.at(k);
+				//split the excerpt down the middle
+				cv::Mat L_window = cv::Mat(window, cv::Rect(0, 0, window.cols/2, window.rows));
+				cv::Mat R_window = cv::Mat(window, cv::Rect((window.cols/2)-1, 0, window.cols/2, window.rows));
+				//cv::imshow("leftwindow", L_window);
+				//cv::imshow("rightwindow", R_window);
+				//cv::waitKey(40);
+				//printf("extracting color\n");
+
+				//split the excerpt into two majority colors
+				std::vector<cv::Vec3b> roi_classesL = cProc.GetClassesColor(L_window, 5, 2);
+				std::vector<cv::Vec3b> roi_classesR = cProc.GetClassesColor(R_window, 5, 2);
+				prev_frame.storeColour(roi_classesL.at(0));
+				prev_frame.storeColour(roi_classesR.at(0));
+
+				//display the two dominant colors for both sides
+				cv::Mat leftcolor = cProc.displayColor(roi_classesL.at(0));
+				cv::Mat rightcolor = cProc.displayColor(roi_classesR.at(0));
+			}
+
+			//do the same thing for the right frame
+			std::vector<cv::Mat>  Rexcerpts = detector.searchDeviationDx(R_dimg, R_cimg);
+			std::vector<cv::Rect> Rexcerpt_xs = detector.getExcerptWindow();
+			curr_frame.storeColourdev_window(Rexcerpt_xs);
+			curr_frame.storeDepthdev_window(Rexcerpt_xs);
+
+			for(int k = 0; k < Rexcerpts.size(); k++){
+
+				cv::Mat window = Rexcerpts.at(k);	
+				//split the excerpt down the middle
+				cv::Mat L_window = cv::Mat(window, cv::Rect(0, 0, window.cols/2, window.rows));
+				cv::Mat R_window = cv::Mat(window, cv::Rect((window.cols/2)-1, 0, window.cols/2, window.rows));
+				//cv::imshow("leftwindow", L_window);
+				//cv::imshow("rightwindow", R_window);
+				//cv::waitKey(40);
+				//cv::waitKey(0);
+				//cv::destroyAllWindows();
+				//printf("extracting color\n");
+				cv::GaussianBlur(L_window, L_window, cv::Size(7,7),5);
+				cv::GaussianBlur(L_window, L_window, cv::Size(7,7),5);
+				//split the excerpt into two majority colors
+				std::vector<cv::Vec3b> roi_classesL = cProc.GetClassesColor(L_window, 5, 2);
+				std::vector<cv::Vec3b> roi_classesR = cProc.GetClassesColor(R_window, 5, 2);
+				curr_frame.storeColour(roi_classesL.at(0));
+				curr_frame.storeColour(roi_classesR.at(0));
+
+				//display the two dominant colors for both sides
+				cv::Mat leftcolor = cProc.displayColor(roi_classesL.at(0));
+				cv::Mat rightcolor = cProc.displayColor(roi_classesR.at(0));
+			}
+
+			//with the given information, find for the suitable area to look for correlation stitching
+			window = findWindowOfInterest(prev_frame, curr_frame);
+
+			//determine the direction
+			bool prev_left = false;bool curr_left;
+			if(window.first.x < prev_frame.getColourImage().cols/2){
+				//left marker
+				prev_left = true;
+			}else{
+				prev_left = false;
+			}
+			
+			if(window.second.x < curr_frame.getColourImage().cols/2){
+				//left marker
+				curr_left = true;
+			}else{
+				curr_left = false;
+			}
+
+			if(prev_left && !curr_left){
+				direction = RIGHT2LEFT;
+				printf("stitching right to left\n");
+			}else if(!prev_left && curr_left){
+				direction = LEFT2RIGHT;
+				printf("stitching left to right\n");
+			}
+		}else{//end of choosing direction
+
+			if(direction == RIGHT2LEFT){
+				//stitch left window of prev frame with right window of current frame
+				window = std::pair<cv::Rect,cv::Rect>(curr_frame.getRightMarker(),prev_frame.getLeftMarker());
+			}else if(direction == LEFT2RIGHT){
+				//stitch right window of prev frame with left window of current frame
+				window = std::pair<cv::Rect,cv::Rect>(prev_frame.getRightMarker(), curr_frame.getLeftMarker());
+			}
+		}
+
+
+		//find offset of VGA resolution with given window offset
+		std::pair<int, int> corr_values = getColorOffset2(prev_cimg, R_cimg, window.first, window.second);
+		corr_offsets.push_back(corr_values);
+		if(i > 0 && L_cimg.cols > VGA_WIDTH){
+			for(int k = 0; k < corr_offsets.size()-1; k++){
+				
+				corr_values.first = corr_values.first + corr_offsets.at(k).first;
+				corr_values.second = corr_values.second + corr_offsets.at(k).second;
+			}
+		}
+		//stitch result together with found offset in VGA resolution
+
+		cv::Mat left_cimg, right_cimg, left_dimg, right_dimg;
+		L_cimg.convertTo(left_cimg, CV_8UC1);
+		L_dimg.convertTo(left_dimg, CV_8UC1);
+		R_cimg.convertTo(right_cimg, CV_8UC1);
+		R_dimg.convertTo(right_dimg, CV_8UC1);
+
+ 		cv::imshow("stitching thesee", left_cimg); 
+		cv::imshow("stitching these", right_cimg);
+		cv::waitKey(30);
+		cv::waitKey(0);
+		cv::Mat corresult = stitch(left_cimg, right_cimg, corr_values.first, corr_values.second);
+		cv::Mat depthstitch = stitch(left_dimg, right_dimg, corr_values.first, corr_values.second);
+		std::ostringstream stream,dstream;
+		stream << "rawdata\\result\\";
+		stream << "colorstitch.jpg";
+		dstream << "rawdata\\result\\";
+		dstream << "depthstitch.jpg";
+		cv::String dfilename = dstream.str();
+		cv::String filename = stream.str();
+		if(cv::imwrite(filename, corresult)){
+			printf("Image saved. ");
+		}else{
+			printf("Error saving Image. ");
+		}
+
+		if(cv::imwrite(dfilename, depthstitch)){
+			printf("Depth Image saved. ");
+		}else{
+			printf("Error saving Image. ");
+		}
+
+		cv::destroyAllWindows();
+		cstitches.push_back(corresult);
+		dstitches.push_back(depthstitch);
+	}
+
+	result = std::pair<cv::Mat,cv::Mat>(cstitches.back(), dstitches.back());
+
+	return result;
 }
 
 

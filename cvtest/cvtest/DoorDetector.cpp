@@ -10,11 +10,93 @@ DoorDetector::DoorDetector(){
 }
 //given a stitched colour and depth image, figure out if there's a door
 //if there is one, highlight it in the colour and show it
-DoorCandidate DoorDetector::hasDoor(cv::Mat colour_src, cv::Mat depth_src){
+//supports only one door candidate
+DoorCandidate DoorDetector::hasDoor(cv::Mat colorpano, cv::Mat depthpano){
 	//A door is determined by having two edges of the door, changes in hue,
 	//and changes in depth indention.
+	/**
+	 * 	std::vector<Line> depth_lines;
+	 *	cv::Mat door;
+	 *	cv::Mat door_graph;
+	 *	cv::Vec3b door_colour;
+	 **/
 	DoorCandidate possible_door;
+	depthPlaneDetector depth_detector = depthPlaneDetector(61,30);
+	ColorProcessor cProc = ColorProcessor();
+	cv::Mat depthgraph = depth_detector.displayDepthGraph(depthpano,0,0);
 
+	std::vector<cv::Rect> keypoints = depth_detector.searchDepthDeviation(depthpano, depthgraph);
+	std::vector<Line> line_models  = findDepthLines(depthpano, depthgraph);
+	std::vector<cv::Rect> segments = getSegments(depthgraph, keypoints);
+	//match the vertical line segments with line models to get a candidate door
+	std::vector<std::pair<cv::Rect, Line>> excerpts = getExcerpts(depthgraph, segments, line_models);
+	std::vector<cv::Mat> color_excerpts = std::vector<cv::Mat>();
+
+	cv::Mat panoline;depthgraph.copyTo(panoline);
+	possible_door.storeDoorGraph(panoline);
+
+	for(int i = 0; i < excerpts.size(); i++){
+		cv::Mat colorexcerpt = cv::Mat(colorpano, excerpts.at(i).first);
+		possible_door.storeLine(excerpts.at(i).second);
+		color_excerpts.push_back(colorexcerpt);
+		panoline = excerpts.at(i).second.drawLine(panoline,
+			excerpts.at(i).second, excerpts.at(i).first);
+	}
+
+	//cv::imshow("panoline", panoline);
+	//cv::waitKey(30);
+	//cv::waitKey(0);
+	std::ostringstream steam;
+	steam<< "rawdata\\result\\";
+	steam << "panoline.jpg";
+	cv::String fileaname = steam.str();
+	if(cv::imwrite(fileaname, panoline)){
+		printf("Image saved. \n");
+	}else{
+		printf("Error saving Image. \n");
+	}
+
+	//get their colours and look for change of colour between twon segments
+	cv::Vec3b prev_color, curr_color;
+	cv::Vec3b* temp_color = NULL;
+	int doorcandidate_excerpt = 0;
+	std::vector<int> doorcandidates = std::vector<int>();
+	prev_color = cProc.GetClassesColor(color_excerpts.at(0),2,5).at(0);
+
+	for(int k = 1; k < color_excerpts.size(); k++){
+		curr_color = cProc.GetClassesColor(color_excerpts.at(k),2,5).at(0);
+
+		double colourdiff = cProc.compareColours(prev_color,curr_color);
+		if(colourdiff > 50){
+			//there's a change in color, check if the next color 
+			//is similar to the changed one 
+			if(temp_color == NULL){
+				//mark excerpt as potential
+				temp_color = &curr_color;
+				doorcandidate_excerpt = k;
+			}else{
+				//there's change in colour between previous and now colour
+				//check if there's difference in colour between temp and prev?
+				colourdiff = cProc.compareColours(prev_color, *temp_color);
+				if(colourdiff > 50){
+					possible_door.storeDoorColour(*temp_color);
+					possible_door.setHasDoor(true);
+					doorcandidates.push_back(doorcandidate_excerpt);
+					break;
+					
+				}else{
+				
+					temp_color = &prev_color;
+					doorcandidate_excerpt = k;
+				}
+			}
+		}
+		prev_color = curr_color;
+	}
+
+	//extract doorexcerpt and display it
+	cv::Mat candidate = cv::Mat(colorpano, excerpts.at(doorcandidate_excerpt).first);
+	possible_door.storeDoorExtract(candidate);
 
 	return possible_door;
 }
@@ -27,28 +109,21 @@ std::vector<Line> DoorDetector::findDepthLines(cv::Mat depth_src, cv::Mat depth_
 	std::vector<cv::Rect> keypoints = dDetector.searchDepthDeviation(depth_src, depth_graph);
 	std::vector<cv::Rect> segments = getSegments(depth_graph, keypoints);
 
-	//show the keypoints
-	//for(int k = 0; k < keypoints.size(); k++){
-	//	cv::Mat roi = cv::Mat(depth_graph, keypoints.at(k));
-	//	cv::String roiname = k + "roiiii";
-	//	cv::imshow(roiname, roi);
-	//	cv::waitKey(40);
-	//}
-
 	//show the segments
 	for(int i = 0; i < segments.size(); i++){
 		cv::Mat roi = cv::Mat(depth_graph, segments.at(i));
 		Line roi_line = Line(roi);
 		temp_lines.push_back(roi_line);
 		roi = roi_line.drawLine(roi, roi_line);
-		cv::String roiname = i + "segment";
+		//cv::String roiname = i + "segment";
 		printf("line model : gradient : %f, y-intercept : %f\n", roi_line.gradient, roi_line.yintercept);
-		cv::imshow(roiname, roi);
-		cv::waitKey(40);
+		//cv::imshow(roiname, roi);
+		//cv::waitKey(40);
 		//cv::waitKey(0);
 	}
 	cv::waitKey(0);
 	cv::waitKey(40);
+	cv::destroyAllWindows();
 	std::vector<Line> temp_models = std::vector<Line>();
 	models.push_back(temp_lines.at(0));
 	Line initial = models.at(0);
@@ -89,13 +164,6 @@ std::vector<Line> DoorDetector::findDepthLines(cv::Mat depth_src, cv::Mat depth_
 		final_graph = models.at(i).drawLine(final_graph, models.at(i));
 	}
 
-	//printf("drawing line..\n");
-	//cv::Mat linemat = average_line.drawLine(depth_graph, average_line);
-	printf("showing line..\n");
-//	cv::imshow("final_graph", final_graph);
-//	cv::waitKey(40);
-//	cv::waitKey(0);
-//	cv::destroyAllWindows();
 
 	return models;
 }
